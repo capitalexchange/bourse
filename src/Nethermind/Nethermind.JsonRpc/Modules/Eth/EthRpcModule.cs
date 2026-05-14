@@ -343,6 +343,22 @@ public partial class EthRpcModule(
 
         tx.ChainId = _blockchainBridge.GetChainId();
 
+        // Bourse fork: reject an underpriced transaction up front so the caller gets a clear
+        // error, instead of one that is silently accepted into the pool and then never mined.
+        // (eth_sendTransaction does not auto-fill the fee, so omitting it leaves maxFeePerGas
+        // at 0; and a 0-period Clique chain only seals blocks that contain includable txs.)
+        UInt256 currentBaseFee = _blockFinder.Head?.Header?.BaseFeePerGas ?? UInt256.Zero;
+        if (currentBaseFee > UInt256.Zero)
+        {
+            UInt256 txMaxFeePerGas = tx.Type >= TxType.EIP1559 ? tx.MaxFeePerGas : tx.GasPrice;
+            if (txMaxFeePerGas < currentBaseFee)
+            {
+                return Task.FromResult(ResultWrapper<Hash256>.Fail(
+                    $"max fee per gas ({txMaxFeePerGas}) is below the current base fee ({currentBaseFee})",
+                    ErrorCodes.TransactionRejected));
+            }
+        }
+
         UInt256? nonce = rpcTx is LegacyTransactionForRpc legacy ? legacy.Nonce : null;
 
         TxHandlingOptions options = nonce is null ? TxHandlingOptions.ManagedNonce : TxHandlingOptions.None;
