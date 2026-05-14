@@ -10,8 +10,9 @@ public class CliqueChainSpecEngineParameters : IChainSpecEngineParameters
 {
     public string? EngineName => SealEngineType;
     public string? SealEngineType => Core.SealEngineType.Clique;
-    public ulong Epoch { get; set; }
-    // Bourse fork: block-on-demand only. Period is hardcoded to 0 regardless of chainspec input.
+    // Bourse fork: Clique parameters are hardcoded regardless of chainspec input -
+    // block-on-demand (period 0) with the standard 30000-block checkpoint epoch.
+    public ulong Epoch { get => 30000UL; set { } }
     public ulong Period { get => 0UL; set { } }
     public UInt256? Reward { get; set; } = UInt256.Zero;
 }

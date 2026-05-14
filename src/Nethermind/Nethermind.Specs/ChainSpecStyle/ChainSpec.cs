@@ -32,7 +32,8 @@ namespace Nethermind.Specs.ChainSpecStyle
         public bool GenesisStateUnavailable { get; set; }
         public Block Genesis { get; set; }
 
-        public string SealEngineType { get; set; }
+        // Bourse fork: the seal engine is hardcoded to Clique regardless of chainspec input.
+        public string SealEngineType { get => Core.SealEngineType.Clique; set { } }
 
         public ChainParameters Parameters { get; set; }
 

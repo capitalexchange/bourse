@@ -41,7 +41,7 @@ public class ChainSpecLoaderTests
         Assert.That(chainSpec.NetworkId, Is.EqualTo(343UL), $"{nameof(chainSpec.NetworkId)}");
         Assert.That(chainSpec.Name, Is.EqualTo("Ethereum"), $"{nameof(chainSpec.Name)}");
         Assert.That(chainSpec.DataDir, Is.EqualTo("ethereum"), $"{nameof(chainSpec.Name)}");
-        Assert.That(chainSpec.SealEngineType, Is.EqualTo(SealEngineType.Ethash), "engine");
+        Assert.That(chainSpec.SealEngineType, Is.EqualTo(SealEngineType.Clique), "engine");
 
         chainSpec.HomesteadBlockNumber.Should().Be(MainnetSpecProvider.HomesteadBlockNumber);
         chainSpec.DaoForkBlockNumber.Should().Be(1920000);
@@ -69,7 +69,7 @@ public class ChainSpecLoaderTests
         Assert.That(chainSpec.NetworkId, Is.EqualTo(343UL), $"{nameof(chainSpec.NetworkId)}");
         Assert.That(chainSpec.Name, Is.EqualTo("Spaceneth"), $"{nameof(chainSpec.Name)}");
         Assert.That(chainSpec.DataDir, Is.EqualTo("spaceneth"), $"{nameof(chainSpec.Name)}");
-        Assert.That(chainSpec.SealEngineType, Is.EqualTo(SealEngineType.NethDev), "engine");
+        Assert.That(chainSpec.SealEngineType, Is.EqualTo(SealEngineType.Clique), "engine");
 
         chainSpec.HomesteadBlockNumber.Should().Be(0L);
         chainSpec.DaoForkBlockNumber.Should().Be(null);
@@ -95,7 +95,7 @@ public class ChainSpecLoaderTests
         Assert.That(chainSpec.NetworkId, Is.EqualTo(343UL), $"{nameof(chainSpec.NetworkId)}");
         Assert.That(chainSpec.Name, Is.EqualTo("Sepolia Testnet"), $"{nameof(chainSpec.Name)}");
         Assert.That(chainSpec.DataDir, Is.EqualTo("sepolia"), $"{nameof(chainSpec.Name)}");
-        Assert.That(chainSpec.SealEngineType, Is.EqualTo(SealEngineType.Ethash), "engine");
+        Assert.That(chainSpec.SealEngineType, Is.EqualTo(SealEngineType.Clique), "engine");
 
         chainSpec.LondonBlockNumber.Should().Be(0L);
         chainSpec.ShanghaiTimestamp.Should().Be(1677557088);
@@ -108,7 +108,7 @@ public class ChainSpecLoaderTests
         ChainSpec chainSpec = LoadChainSpec(path);
 
         Assert.That(chainSpec.NetworkId, Is.EqualTo(343UL), $"{nameof(chainSpec.NetworkId)}");
-        Assert.That(chainSpec.SealEngineType, Is.EqualTo(SealEngineType.Ethash), "engine");
+        Assert.That(chainSpec.SealEngineType, Is.EqualTo(SealEngineType.Clique), "engine");
 
         chainSpec.DaoForkBlockNumber.Should().Be(null);
         chainSpec.TangerineWhistleBlockNumber.Should().Be(0);

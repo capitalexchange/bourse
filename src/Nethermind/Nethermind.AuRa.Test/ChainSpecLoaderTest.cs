@@ -33,7 +33,7 @@ public class ChainSpecLoaderTest
         Assert.That(chainSpec.Parameters.Eip1559BaseFeeInitialValue, Is.EqualTo(1.GWei), $"fork base fee");
         Assert.That(chainSpec.NetworkId, Is.EqualTo(343UL), $"{nameof(chainSpec.NetworkId)}");
         Assert.That(chainSpec.Name, Is.EqualTo("GnosisChain"), $"{nameof(chainSpec.Name)}");
-        Assert.That(chainSpec.SealEngineType, Is.EqualTo(SealEngineType.AuRa), "engine");
+        Assert.That(chainSpec.SealEngineType, Is.EqualTo(SealEngineType.Clique), "engine");
 
         int berlinGnosisBlockNumber = 16101500;
         chainSpec.Parameters.Eip2565Transition.Should().Be(berlinGnosisBlockNumber);
@@ -58,7 +58,7 @@ public class ChainSpecLoaderTest
         Assert.That(chainSpec.Parameters.Eip1559BaseFeeInitialValue, Is.EqualTo(1.GWei), $"fork base fee");
         Assert.That(chainSpec.NetworkId, Is.EqualTo(343UL), $"{nameof(chainSpec.NetworkId)}");
         Assert.That(chainSpec.Name, Is.EqualTo("chiado"), $"{nameof(chainSpec.Name)}");
-        Assert.That(chainSpec.SealEngineType, Is.EqualTo(SealEngineType.AuRa), "engine");
+        Assert.That(chainSpec.SealEngineType, Is.EqualTo(SealEngineType.Clique), "engine");
 
         chainSpec.Parameters.TerminalTotalDifficulty.ToString()
             .Should().Be("231707791542740786049188744689299064356246512");

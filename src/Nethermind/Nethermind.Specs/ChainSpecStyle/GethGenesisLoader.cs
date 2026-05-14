@@ -352,6 +352,14 @@ internal sealed class GethGenesisEngineParametersProvider(GethGenesisConfigJson 
 
         T target = Activator.CreateInstance<T>();
 
+        // Bourse fork: the seal engine is hardcoded to Clique, so Clique engine parameters
+        // must always be available even though Geth genesis files only describe Ethash.
+        // CliqueChainSpecEngineParameters has its values hardcoded, so a fresh instance is complete.
+        if (target.EngineName == Core.SealEngineType.Clique)
+        {
+            return target;
+        }
+
         if (target.EngineName != Core.SealEngineType.Ethash)
         {
             throw new NotSupportedException($"Geth genesis files do not support engine-specific parameters of type {typeof(T).Name}");

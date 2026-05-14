@@ -168,7 +168,7 @@ public class GethGenesisLoaderTests
 
         chainSpec.ChainId.Should().Be(343UL);
         chainSpec.NetworkId.Should().Be(343UL);
-        chainSpec.SealEngineType.Should().Be(SealEngineType.Ethash);
+        chainSpec.SealEngineType.Should().Be(SealEngineType.Clique);
         chainSpec.Genesis.Header.GasLimit.Should().Be(0x8000000);
         chainSpec.Genesis.Header.Difficulty.Should().Be(UInt256.One);
         chainSpec.Allocations.Should().HaveCount(1);
