@@ -406,7 +406,7 @@ IConfigProvider CreateConfigProvider(ParseResult parseResult)
     {
         // Bourse fork: configs are not bundled with the app - default to the fixed deployment directory.
         string configsDir = parseResult.GetValue(BasicOptions.ConfigurationDirectory)
-            ?? GetBourseConfigsDirectory();
+            ?? BourseDirectories.ConfigDirectory;
 
         configFile = Path.Join(configsDir, configFile);
 
@@ -442,7 +442,7 @@ IConfigProvider CreateConfigProvider(ParseResult parseResult)
 
     if (!File.Exists(configFile))
     {
-        string bourseConfigsDir = GetBourseConfigsDirectory();
+        string bourseConfigsDir = BourseDirectories.ConfigDirectory;
         logger.Error(
             $"Configuration file not found: '{configFile}'. " +
             $"Bourse configuration files must be placed in '{bourseConfigsDir}'. " +
@@ -466,13 +466,6 @@ IConfigProvider CreateConfigProvider(ParseResult parseResult)
 
     return configProvider;
 }
-
-// Bourse fork: network configs are not bundled with the app. They live in a fixed
-// deployment directory - /opt/bourse/data/nethermind on Linux/macOS, the same
-// layout rooted at C:\ on Windows.
-static string GetBourseConfigsDirectory() => OperatingSystem.IsWindows()
-    ? @"C:\opt\bourse\data\nethermind"
-    : "/opt/bourse/data/nethermind";
 
 RootCommand CreateRootCommand()
 {

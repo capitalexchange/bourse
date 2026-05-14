@@ -27,7 +27,7 @@ public interface IInitConfig : IConfig
     [ConfigItem(Description = "Whether to connect to newly discovered peers.", DefaultValue = "true")]
     bool PeerManagerEnabled { get; set; }
 
-    [ConfigItem(Description = "The path to the chain spec file.", DefaultValue = "chainspec/foundation.json")]
+    [ConfigItem(Description = "The path to the chain spec (genesis) file. A bare name or relative path is resolved against the Bourse config directory (/opt/bourse/data/nethermind on Linux, C:\\opt\\bourse\\data\\nethermind on Windows); an absolute path is used as-is.", DefaultValue = "genesis.json")]
     string ChainSpecPath { get; set; }
 
     [ConfigItem(Description = "The base path for all Nethermind databases.", DefaultValue = "db")]

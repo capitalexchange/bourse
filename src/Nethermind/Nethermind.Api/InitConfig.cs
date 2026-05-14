@@ -14,7 +14,7 @@ namespace Nethermind.Api
         public bool DiscoveryEnabled { get; set; } = true;
         public bool ProcessingEnabled { get; set; } = true;
         public bool PeerManagerEnabled { get; set; } = true;
-        public string ChainSpecPath { get; set; } = "chainspec/foundation.json";
+        public string ChainSpecPath { get; set; } = "genesis.json";
         public string BaseDbPath { get; set; } = "db";
         public string LogFileName { get; set; } = "log.txt";
         public string? GenesisHash { get; set; }

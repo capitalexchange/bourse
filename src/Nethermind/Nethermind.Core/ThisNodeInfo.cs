@@ -16,7 +16,8 @@ namespace Nethermind.Core
         public static string BuildNodeInfoScreen()
         {
             StringBuilder builder = new();
-            builder.AppendLine(NethermindLogo);
+            builder.AppendLine();
+            builder.AppendLine(BourseBanner);
             builder.AppendLine("-----------------------------  Initialization Completed  -----------------------------");
             builder.AppendLine();
 
@@ -29,18 +30,11 @@ namespace Nethermind.Core
             return builder.ToString();
         }
 
-        private static string NethermindLogo = "\n\n" +
-       "\u001b[36m        ------             \u001b[38;5;208m   ~~~~~~~~        \u001b[37m\n" +
-       "\u001b[36m     --------- ----        \u001b[38;5;208m~~~~~~~~~~~~~~     \u001b[37m\n" +
-       "\u001b[36m   -  -------  ------      \u001b[38;5;208m  ~~~~~~~~~~~~~~   \u001b[37m\n" +
-       "\u001b[36m -----  -      ----        \u001b[38;5;208m   ~~~    ~~~~~~~~ \u001b[37m       ++   ++   +++++  ++++++  ++   ++   +++++  ++++++    ++    ++    ++   ++   ++   +++++ \n" +
-       "\u001b[36m ------         -          \u001b[38;5;208m            ~~~    \u001b[37m       +++  ++  ++        ++    ++   ++  ++      ++   ++  ++++   +++   ++   +++  ++   ++  ++ \n" +
-       "\u001b[36m-------                                   ----\u001b[37m       ++ + ++  ++++++    ++    +++++++  ++++++  ++++++   ++ +  + ++   ++   ++ + ++   ++  ++\n" +
-       "\u001b[36m----                                   -------\u001b[37m       ++  +++  ++        ++    ++   ++  ++      ++  ++   ++ ++++ ++   ++   ++  +++   ++  ++\n" +
- "\u001b[38;5;208m    ~~~                  \u001b[36m    -         ------ \u001b[37m       ++   ++   +++++    ++    ++   ++   +++++  ++   ++  ++  ++  ++   ++   ++   ++   +++++ \n" +
- "\u001b[38;5;208m ~~~~~~~~      ~         \u001b[36m  ----      -  ----- \u001b[37m\n" +
- "\u001b[38;5;208m   ~~~~~~~~~~~~~~        \u001b[36m------  -------  -   \u001b[37m\n" +
- "\u001b[38;5;208m     ~~~~~~~~~~~~~~      \u001b[36m  ---- ---------     \u001b[37m\n" +
- "\u001b[38;5;208m        ~~~~~~~~         \u001b[36m       ------        \u001b[37m                                                                  https://www.nethermind.io\n";
+        /// <summary>
+        /// The Bourse fork's startup banner. Replaces the upstream Nethermind ASCII-art logo
+        /// with a single concise line plus this fork's version.
+        /// </summary>
+        private static string BourseBanner =>
+            $"BOURSE by Capital Exchange Markets | Digital - hardforked Nethermind (v{ProductInfo.Version})";
     }
 }

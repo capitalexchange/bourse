@@ -66,12 +66,16 @@ public class ApiBuilder
 
     private ChainSpec LoadChainSpec(EthereumJsonSerializer ethereumJsonSerializer)
     {
-        if (_logger.IsDebug) _logger.Debug($"Loading chain spec from {_initConfig.ChainSpecPath}");
+        // Bourse fork: a bare/relative chainspec (or genesis) path is resolved against the
+        // fixed config directory so it lives alongside the node config; absolute paths are honored as-is.
+        string chainSpecPath = BourseDirectories.ResolveConfigPath(_initConfig.ChainSpecPath);
 
-        ThisNodeInfo.AddInfo("Chainspec    :", _initConfig.ChainSpecPath);
+        if (_logger.IsDebug) _logger.Debug($"Loading chain spec from {chainSpecPath}");
+
+        ThisNodeInfo.AddInfo("Chainspec    :", chainSpecPath);
 
         ChainSpecFileLoader loader = new(ethereumJsonSerializer, _logManager);
-        ChainSpec chainSpec = loader.LoadEmbeddedOrFromFile(_initConfig.ChainSpecPath);
+        ChainSpec chainSpec = loader.LoadEmbeddedOrFromFile(chainSpecPath);
 
         //overwriting NetworkId which is useful for some devnets (like bloatnet)
         if (_initConfig.NetworkId is not null)
