@@ -347,6 +347,15 @@ public class CliqueBlockProducer : IBlockProducer
             return null;
         }
 
+        // Bourse fork: on a 0-period chain, processing may have dropped every transaction
+        // (e.g. the selection briefly still held an already-included tx right after a new
+        // head). Skip the now-empty block quietly instead of letting the sealer throw.
+        if (_config.BlockPeriod == 0 && processedBlock.Transactions.Length == 0)
+        {
+            if (_logger.IsTrace) _logger.Trace($"Skipping empty processed block {processedBlock.Number} on 0-period chain");
+            return null;
+        }
+
         if (_logger.IsDebug) _logger.Debug($"Sealing prepared block {processedBlock.Number}");
 
         try
