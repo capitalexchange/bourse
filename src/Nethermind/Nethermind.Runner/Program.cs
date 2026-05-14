@@ -160,7 +160,9 @@ async Task<int> RunAsync(ParseResult parseResult, PluginLoader pluginLoader, Can
 
     pluginLoader.OrderPlugins(pluginConfig);
 
-    ResolveDataDirectory(parseResult.GetValue(BasicOptions.DataDirectory),
+    // Bourse fork: when --data-dir is not given, keep runtime state (db, logs, keystore,
+    // snapshots) in the fixed config directory so the app directory stays clean.
+    ResolveDataDirectory(parseResult.GetValue(BasicOptions.DataDirectory) ?? BourseDirectories.ConfigDirectory,
         initConfig, keyStoreConfig, snapshotConfig);
 
     NLogManager logManager = new(initConfig.LogFileName, initConfig.LogDirectory, initConfig.LogRules);
