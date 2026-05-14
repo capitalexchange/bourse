@@ -160,10 +160,13 @@ async Task<int> RunAsync(ParseResult parseResult, PluginLoader pluginLoader, Can
 
     pluginLoader.OrderPlugins(pluginConfig);
 
-    // Bourse fork: when --data-dir is not given, keep runtime state (db, logs, keystore,
-    // snapshots) in the fixed config directory so the app directory stays clean.
+    // Bourse fork: when --data-dir is not given, keep runtime state (db, logs, snapshots)
+    // in the fixed config directory so the app directory stays clean.
     ResolveDataDirectory(parseResult.GetValue(BasicOptions.DataDirectory) ?? BourseDirectories.ConfigDirectory,
         initConfig, keyStoreConfig, snapshotConfig);
+
+    // Bourse fork: the keystore must exist before startup - create it, or fail fast if we cannot.
+    EnsureKeyStoreDirectory(keyStoreConfig.KeyStoreDirectory);
 
     NLogManager logManager = new(initConfig.LogFileName, initConfig.LogDirectory, initConfig.LogRules);
     DotNettyLoggerFactory.DefaultFactory = new NethermindLoggerFactory(logManager, lowerLogLevel: true);
@@ -542,17 +545,19 @@ void PurgeDatabaseDirectory(string basePath, bool preserveNetwork = false) =>
 
 void ResolveDataDirectory(string? path, IInitConfig initConfig, IKeyStoreConfig keyStoreConfig, ISnapshotConfig snapshotConfig)
 {
+    // Bourse fork: the keystore lives in the shared external tree (data/external/keystore),
+    // not under the node's own data directory.
     if (string.IsNullOrWhiteSpace(path))
     {
         initConfig.BaseDbPath ??= "db".GetApplicationResourcePath();
         initConfig.LogDirectory ??= "logs".GetApplicationResourcePath();
-        keyStoreConfig.KeyStoreDirectory ??= "keystore".GetApplicationResourcePath();
+        keyStoreConfig.KeyStoreDirectory = BourseDirectories.KeyStoreDirectory;
     }
     else
     {
         string newDbPath = initConfig.BaseDbPath.GetApplicationResourcePath(path);
         string newLogDirectory = initConfig.LogDirectory.GetApplicationResourcePath(path);
-        string newKeyStorePath = keyStoreConfig.KeyStoreDirectory.GetApplicationResourcePath(path);
+        string newKeyStorePath = BourseDirectories.KeyStoreDirectory;
         string newSnapshotPath = snapshotConfig.SnapshotDirectory.GetApplicationResourcePath(path);
 
         if (logger.IsInfo)
@@ -570,6 +575,27 @@ void ResolveDataDirectory(string? path, IInitConfig initConfig, IKeyStoreConfig 
         initConfig.LogDirectory = newLogDirectory;
         keyStoreConfig.KeyStoreDirectory = newKeyStorePath;
         snapshotConfig.SnapshotDirectory = newSnapshotPath;
+    }
+}
+
+// Bourse fork: ensures the keystore directory exists before startup. Creates it (and any
+// missing parents) if absent; if it cannot be created, fails fast with a clear stopper error.
+void EnsureKeyStoreDirectory(string keyStoreDirectory)
+{
+    if (Directory.Exists(keyStoreDirectory))
+        return;
+
+    try
+    {
+        Directory.CreateDirectory(keyStoreDirectory);
+        if (logger.IsInfo) logger.Info($"Created keystore directory: {keyStoreDirectory}");
+    }
+    catch (Exception ex)
+    {
+        throw new IOException(
+            $"Keystore directory '{keyStoreDirectory}' does not exist and could not be created. " +
+            "Create it (and place the validator/account key files there) before starting the node.",
+            ex);
     }
 }
 

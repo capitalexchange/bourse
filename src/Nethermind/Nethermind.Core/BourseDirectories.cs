@@ -17,13 +17,30 @@ namespace Nethermind.Core;
 public static class BourseDirectories
 {
     /// <summary>
-    /// Directory holding every Bourse configuration file.
-    /// <c>/opt/bourse/data/nethermind</c> on Linux/macOS; the same layout rooted
-    /// at <c>C:\</c> on Windows.
+    /// Root of the Bourse data tree: <c>/opt/bourse/data</c> on Linux/macOS,
+    /// the same layout rooted at <c>C:\</c> on Windows.
     /// </summary>
-    public static string ConfigDirectory { get; } = OperatingSystem.IsWindows()
-        ? @"C:\opt\bourse\data\nethermind"
-        : "/opt/bourse/data/nethermind";
+    private static string DataRoot { get; } = OperatingSystem.IsWindows()
+        ? @"C:\opt\bourse\data"
+        : "/opt/bourse/data";
+
+    /// <summary>
+    /// Directory holding every Bourse configuration file (node config, chainspec/genesis).
+    /// <c>{DataRoot}/nethermind</c>.
+    /// </summary>
+    public static string ConfigDirectory { get; } = Path.Combine(DataRoot, "nethermind");
+
+    /// <summary>
+    /// Shared external directory for state not owned by the node itself.
+    /// <c>{DataRoot}/external</c>.
+    /// </summary>
+    public static string ExternalDirectory { get; } = Path.Combine(DataRoot, "external");
+
+    /// <summary>
+    /// Keystore directory. Kept in the shared external tree rather than under the
+    /// node's own config directory. <c>{DataRoot}/external/keystore</c>.
+    /// </summary>
+    public static string KeyStoreDirectory { get; } = Path.Combine(ExternalDirectory, "keystore");
 
     /// <summary>
     /// Resolves a configuration file path against <see cref="ConfigDirectory"/>.
