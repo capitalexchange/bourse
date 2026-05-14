@@ -405,6 +405,20 @@ public class CliqueBlockProducer : IBlockProducer
             return null;
         }
 
+        long gasLimit = _gasLimitCalculator.GetGasLimit(parentHeader);
+        Transaction[] selectedTxs = _txSource
+            .GetTransactions(parentHeader, gasLimit, null, filterSource: true)
+            .ToArray();
+
+        // Bourse fork: on a 0-period (block-on-demand) chain, do not build or seal empty
+        // blocks. Stay quiet and idle until a transaction arrives, instead of spin-failing
+        // the sealer on every 100ms producer tick (which flooded the logs with exceptions).
+        if (_config.BlockPeriod == 0 && selectedTxs.Length == 0)
+        {
+            if (_logger.IsTrace) _logger.Trace("Skipping empty block on 0-period chain - waiting for transactions");
+            return null;
+        }
+
         if (_logger.IsInfo)
             _logger.Info($"Preparing new block on top of {parentHeader}");
 
@@ -416,7 +430,7 @@ public class CliqueBlockProducer : IBlockProducer
             Address.Zero,
             1,
             parentHeader.Number + 1,
-            _gasLimitCalculator.GetGasLimit(parentHeader),
+            gasLimit,
             timestamp > parentHeader.Timestamp ? timestamp : parentHeader.Timestamp + 1,
             []);
 
@@ -484,7 +498,6 @@ public class CliqueBlockProducer : IBlockProducer
         header.MixHash = Keccak.Zero;
         header.WithdrawalsRoot = spec.WithdrawalsEnabled ? Keccak.EmptyTreeHash : null;
 
-        IEnumerable<Transaction> selectedTxs = _txSource.GetTransactions(parentHeader, header.GasLimit, null, filterSource: true);
         Block block = new BlockToProduce(
             header,
             selectedTxs,
