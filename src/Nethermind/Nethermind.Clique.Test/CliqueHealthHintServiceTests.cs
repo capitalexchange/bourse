@@ -43,31 +43,27 @@ namespace Nethermind.Clique.Test
         {
             get
             {
+                // Bourse fork: Period is hardcoded to 0 (block-on-demand), so both
+                // hints are always 0 regardless of configured period or validator count.
                 yield return new BlockProcessorIntervalHint()
                 {
-                    ChainSpec = new CliqueChainSpecEngineParameters { Period = 15 },
-                    ExpectedProcessingHint = 60,
-                    ExpectedProducingHint = 30
-                };
-                yield return new BlockProcessorIntervalHint()
-                {
-                    ChainSpec = new CliqueChainSpecEngineParameters { Period = 23 },
-                    ExpectedProcessingHint = 92,
-                    ExpectedProducingHint = 46
+                    ChainSpec = new CliqueChainSpecEngineParameters { Period = 0 },
+                    ExpectedProcessingHint = 0,
+                    ExpectedProducingHint = 0
                 };
                 yield return new BlockProcessorIntervalHint()
                 {
                     ValidatorsCount = 10,
-                    ChainSpec = new CliqueChainSpecEngineParameters { Period = 23 },
-                    ExpectedProcessingHint = 92,
-                    ExpectedProducingHint = 460
+                    ChainSpec = new CliqueChainSpecEngineParameters { Period = 0 },
+                    ExpectedProcessingHint = 0,
+                    ExpectedProducingHint = 0
                 };
                 yield return new BlockProcessorIntervalHint()
                 {
                     ValidatorsCount = 2,
-                    ChainSpec = new CliqueChainSpecEngineParameters { Period = 10 },
-                    ExpectedProcessingHint = 40,
-                    ExpectedProducingHint = 40
+                    ChainSpec = new CliqueChainSpecEngineParameters { Period = 0 },
+                    ExpectedProcessingHint = 0,
+                    ExpectedProducingHint = 0
                 };
             }
         }
