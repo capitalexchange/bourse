@@ -399,13 +399,14 @@ IConfigProvider CreateConfigProvider(ParseResult parseResult)
 
     string configFile = parseResult.GetValue(BasicOptions.Configuration)
         ?? Environment.GetEnvironmentVariable("NETHERMIND_CONFIG")
-        ?? "mainnet";
+        ?? "bourse";
 
     // If configFile is not a path, handle it
     if (string.IsNullOrEmpty(Path.GetDirectoryName(configFile)))
     {
+        // Bourse fork: configs are not bundled with the app - default to the fixed deployment directory.
         string configsDir = parseResult.GetValue(BasicOptions.ConfigurationDirectory)
-            ?? "configs".GetApplicationResourcePath();
+            ?? GetBourseConfigsDirectory();
 
         configFile = Path.Join(configsDir, configFile);
 
@@ -440,7 +441,18 @@ IConfigProvider CreateConfigProvider(ParseResult parseResult)
     configFile = Path.GetFullPath(configFile);
 
     if (!File.Exists(configFile))
-        throw new FileNotFoundException("Configuration file not found.", configFile);
+    {
+        string bourseConfigsDir = GetBourseConfigsDirectory();
+        logger.Error(
+            $"Configuration file not found: '{configFile}'. " +
+            $"Bourse configuration files must be placed in '{bourseConfigsDir}'. " +
+            $"Pass one by name with --config <name> (resolved against '{bourseConfigsDir}'), " +
+            "or use --configs-dir / a full path to override.");
+
+        throw new FileNotFoundException(
+            $"Configuration file not found: '{configFile}'. Expected Bourse configs in '{bourseConfigsDir}'.",
+            configFile);
+    }
 
     logger.Info($"Loading configuration from {configFile}");
 
@@ -454,6 +466,13 @@ IConfigProvider CreateConfigProvider(ParseResult parseResult)
 
     return configProvider;
 }
+
+// Bourse fork: network configs are not bundled with the app. They live in a fixed
+// deployment directory - /opt/bourse/data/nethermind on Linux/macOS, the same
+// layout rooted at C:\ on Windows.
+static string GetBourseConfigsDirectory() => OperatingSystem.IsWindows()
+    ? @"C:\opt\bourse\data\nethermind"
+    : "/opt/bourse/data/nethermind";
 
 RootCommand CreateRootCommand()
 {
