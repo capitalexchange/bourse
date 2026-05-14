@@ -11,6 +11,9 @@ namespace Nethermind.Core
 
         public static readonly UInt256 DefaultForkBaseFee = 1.GWei;
 
+        /// <summary>Absolute lower bound the EIP-1559 base fee may decay to once EIP-1559 is active.</summary>
+        public static readonly UInt256 MinimumBaseFee = 1;
+
         public static readonly UInt256 DefaultBaseFeeMaxChangeDenominator = 8;
 
         public static readonly int DefaultElasticityMultiplier = 2;

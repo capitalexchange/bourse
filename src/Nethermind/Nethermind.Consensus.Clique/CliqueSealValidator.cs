@@ -53,12 +53,8 @@ namespace Nethermind.Consensus.Clique
             }
 
             bool isEpochTransition = IsEpochTransition(header.Number);
-            // Checkpoint blocks need to enforce zero beneficiary
-            if (isEpochTransition && header.Beneficiary != Address.Zero)
-            {
-                if (_logger.IsWarn) _logger.Warn($"Invalid block beneficiary ({header.Beneficiary}) - should be empty on checkpoint");
-                return false;
-            }
+            // Bourse fork: the zero-beneficiary rule for checkpoint blocks is intentionally dropped
+            // because every block (including checkpoints) now carries the signer as its beneficiary.
 
             if (isEpochTransition && header.Nonce != Clique.NonceDropVote)
             {

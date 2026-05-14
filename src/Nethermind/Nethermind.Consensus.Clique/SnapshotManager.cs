@@ -275,6 +275,15 @@ namespace Nethermind.Consensus.Clique
 
                 snapshot.Signers[signer] = number;
 
+                // Bourse fork: when a block's beneficiary is its own signer the beneficiary field
+                // is the fee recipient, not a Clique vote target. Skipping the vote tally here
+                // stops the lone validator from being read as drop-voting itself off the signer
+                // list. Real votes still set the beneficiary to a different address.
+                if (header.Beneficiary == signer)
+                {
+                    continue;
+                }
+
                 // Header authorized, discard any previous votes for the signer
                 for (int i = 0; i < snapshot.Votes.Count; i++)
                 {

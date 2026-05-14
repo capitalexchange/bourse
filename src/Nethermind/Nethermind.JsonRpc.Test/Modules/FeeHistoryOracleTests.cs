@@ -121,8 +121,8 @@ namespace Nethermind.JsonRpc.Test.Modules
         [TestCase(3, 3, 5, 6)] //Target gas used: 3/2 = 1.5 | Actual Gas used = 3 | Base Fee Delta = Max((((3-1.5)/1.5 * 5) / 8, 1) = 1 | Next Base Fee = 5 + 1 = 6
         [TestCase(3, 3, 11, 13)] //Target gas used: 3/2 = 1.5 | Actual Gas used = 3 | Base Fee Delta = Max((((3-1.5)/1.5) * 11) / 8, 1) = 2 | Next Base Fee = 11 + 2 = 13
         [TestCase(100, 95, 20, 22)] //Target gas used: 100/2 = 50 | Actual Gas used = 95 | Base Fee Delta = Max((((95-50)/50) * 20) / 8, 1) = 2 | Next Base Fee = 20 + 2 = 22
-        [TestCase(100, 40, 20, 20)] //Target gas used: 100/2 = 50 | Actual Gas used = 40 | Base Fee Delta = (((50-40)/50) * 20) / 8 = 0 | Next Base Fee = 20 - 0 = 20
-        [TestCase(100, 40, 50, 49)] //Target gas used: 100/2 = 50 | Actual Gas used = 40 | Base Fee Delta = (((50-40)/50) * 50) / 8 = 1 | Next Base Fee = 50 - 1 = 49
+        [TestCase(100, 40, 20, 19)] //Target gas used: 100/2 = 50 | Actual Gas used = 40 | Base Fee Delta = Max((((50-40)/50) * 20) / 8, 1) = 1 | Next Base Fee = 20 - 1 = 19
+        [TestCase(100, 40, 50, 49)] //Target gas used: 100/2 = 50 | Actual Gas used = 40 | Base Fee Delta = Max((((50-40)/50) * 50) / 8, 1) = 1 | Next Base Fee = 50 - 1 = 49
         public void GetFeeHistory_IfLondonEnabled_NextBaseFeePerGasCalculatedCorrectly(long gasLimit, long gasUsed, long baseFee, long expectedNextBaseFee)
         {
             int blockCount = 1;
@@ -409,7 +409,9 @@ namespace Nethermind.JsonRpc.Test.Modules
             FeeHistoryOracle feeHistoryOracle = SetUpFeeHistoryManager(newestBlockParameter, spec);
             double[] rewardPercentiles = { 0 };
             using FeeHistoryResults expected = new(0,
-                new ArrayPoolList<UInt256>([2, 3, 3]),
+                // Last entry is the next-block base fee estimate: secondBlock is under target
+                // (gasUsed 2 < target 4), so the Bourse fork drops it by the 1-wei minimum: 3 -> 2.
+                new ArrayPoolList<UInt256>([2, 3, 2]),
                 new ArrayPoolList<double>([0.6, 0.25]),
                 new ArrayPoolList<UInt256>([1, 1, 1]),
                 new ArrayPoolList<double>(2, blobGasUsedRatio),

@@ -160,12 +160,17 @@ public class BlockHeaderTests
     [TestCase(100, 100, 88, 0)]
     [TestCase(100, 300, 267, 10)]
     [TestCase(500, 200, 185, 200)]
-    [TestCase(500, 0, 0, 200)]
+    [TestCase(500, 0, 1, 200)]
     [TestCase(21, 23, 23, 21)]
     [TestCase(21, 23, 61, 300)]
     [TestCase(500, 0, 10, 200, 10)]
     [TestCase(100, 100, 88, 0, 80)]
     [TestCase(100, 100, 110, 0, 110)]
+    // Bourse fork: an under-target block always lowers the base fee by at least 1 wei and the
+    // result is clamped to the 1-wei minimum, so it keeps decaying below 7 wei down to 1.
+    [TestCase(100, 7, 6, 0)]
+    [TestCase(100, 2, 1, 0)]
+    [TestCase(100, 1, 1, 0)]
     public void Eip_1559_CalculateBaseFee(long gasTarget, long baseFee, long expectedBaseFee, long gasUsed, long? minimalBaseFee = null)
     {
         IReleaseSpec releaseSpec = ReleaseSpecSubstitute.Create();

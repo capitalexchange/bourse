@@ -46,8 +46,16 @@ public sealed class DefaultBaseFeeCalculator : IBaseFeeCalculator
             else
             {
                 long gasDelta = parentGasTarget - parent.GasUsed;
-                UInt256 feeDelta = parentBaseFee * (UInt256)gasDelta / (UInt256)parentGasTarget / specFor1559.BaseFeeMaxChangeDenominator;
-                expectedBaseFee = UInt256.Max(parentBaseFee - feeDelta, 0);
+                // Bourse fork deviation from EIP-1559: floor the per-block delta at 1 wei (as the
+                // increase branch already does) so the base fee keeps decaying instead of stalling
+                // around 7 wei once integer division rounds the delta to 0, then clamp the result
+                // to the 1-wei minimum so it never reaches 0.
+                UInt256 feeDelta = UInt256.Max(
+                    parentBaseFee * (UInt256)gasDelta / (UInt256)parentGasTarget / specFor1559.BaseFeeMaxChangeDenominator,
+                    UInt256.One);
+                expectedBaseFee = parentBaseFee > feeDelta
+                    ? UInt256.Max(parentBaseFee - feeDelta, Eip1559Constants.MinimumBaseFee)
+                    : Eip1559Constants.MinimumBaseFee;
             }
 
             if (isForkBlockNumber)

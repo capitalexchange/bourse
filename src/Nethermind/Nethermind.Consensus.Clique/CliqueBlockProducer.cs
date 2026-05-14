@@ -433,10 +433,13 @@ public class CliqueBlockProducer : IBlockProducer
 
         ulong timestamp = _timestamper.UnixTime.Seconds;
 
+        // Bourse fork: use the block signer as the beneficiary instead of the zero address so the
+        // miner field is populated and priority fees go to the validator wallet. The voting branch
+        // below still overrides this with a vote target when a Clique proposal is pending.
         BlockHeader header = new(
             parentHeader.Hash,
             Keccak.OfAnEmptySequenceRlp,
-            Address.Zero,
+            _sealer.Address,
             1,
             parentHeader.Number + 1,
             gasLimit,

@@ -119,6 +119,24 @@ public class CliqueSealEngineTests
         Assert.That(validSeal, Is.True);
     }
 
+    [Test]
+    public async Task Validates_epoch_block_with_signer_beneficiary()
+    {
+        // Bourse fork: checkpoint (epoch) blocks now carry the signer as their beneficiary instead
+        // of the zero address, so the seal validator must no longer reject a non-zero beneficiary
+        // on checkpoints.
+        CliqueConfig epochConfig = new() { Epoch = 6 };
+        SnapshotManager snapshotManager = new(epochConfig, new MemDb(), _blockTree, new EthereumEcdsa(BlockchainIds.Sepolia), LimboLogs.Instance);
+        CliqueSealValidator sealValidator = new(epochConfig, snapshotManager, LimboLogs.Instance);
+        CliqueSealer sealer = new(new Signer(BlockchainIds.Sepolia, _currentSigner, LimboLogs.Instance), epochConfig, snapshotManager, LimboLogs.Instance);
+
+        Block epochBlock = CreateEpochBlock(6, _lastBlock, _currentSigner.Address);
+        Block signed = await sealer.SealBlock(epochBlock, CancellationToken.None);
+
+        bool validHeader = sealValidator.ValidateParams(_blockTree.FindHeader(signed.ParentHash, BlockTreeLookupOptions.None), signed.Header);
+        Assert.That(validHeader, Is.True);
+    }
+
     private Block GetGenesis()
     {
         Hash256 parentHash = Keccak.Zero;
@@ -153,6 +171,28 @@ public class CliqueSealEngineTests
 
     private static void MineBlock(BlockTree tree, Block block) =>
         tree.SuggestBlock(block);
+
+    private Block CreateEpochBlock(long number, Block parent, Address beneficiary)
+    {
+        // Checkpoint blocks embed the sorted signer list between the vanity and the seal.
+        Address[] signers = new Address[_signers.Count];
+        for (int i = 0; i < _signers.Count; i++) signers[i] = _signers[i].Address;
+        Array.Sort(signers, GenericComparer.GetOptimized<Address>());
+
+        byte[] extraData = new byte[Clique.ExtraVanityLength + signers.Length * Address.Size + Clique.ExtraSealLength];
+        for (int i = 0; i < signers.Length; i++)
+        {
+            signers[i].Bytes.CopyTo(extraData.AsSpan(Clique.ExtraVanityLength + i * Address.Size, Address.Size));
+        }
+
+        BlockHeader header = new(parent.Hash, Keccak.OfAnEmptySequenceRlp, beneficiary, Clique.DifficultyInTurn, number, 4700000, (ulong)DateTimeOffset.UtcNow.ToUnixTimeSeconds(), extraData);
+        header.MixHash = Keccak.Zero;
+        header.Nonce = Clique.NonceDropVote;
+        Block block = new(header);
+        block.Header.Bloom = Bloom.Empty;
+        block.Header.Hash = block.CalculateHash();
+        return block;
+    }
 
     private Block CreateBlock(int blockDifficulty, int blockNumber, Block lastBlock)
     {

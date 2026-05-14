@@ -64,6 +64,7 @@ public class CliqueBlockProducerTests
             _cliqueConfig.Epoch = 30000;
             _genesis = GetGenesis();
             _genesis3Validators = GetGenesis(3);
+            _genesis1Validator = GetGenesis(1);
         }
 
         public On CreateNode(PrivateKey privateKey, bool withGenesisAlreadyProcessed = false)
@@ -121,7 +122,7 @@ public class CliqueBlockProducerTests
 
                 stateProvider.Commit(testnetSpecProvider.GenesisSpec);
                 stateProvider.CommitTree(0);
-                _genesis.Header.StateRoot = _genesis3Validators.Header.StateRoot = stateProvider.StateRoot;
+                _genesis.Header.StateRoot = _genesis3Validators.Header.StateRoot = _genesis1Validator.Header.StateRoot = stateProvider.StateRoot;
             }
 
             IBlockTree blockTree = container.Resolve<IBlockTree>();
@@ -135,6 +136,7 @@ public class CliqueBlockProducerTests
 
             _genesis.Header.Hash = _genesis.Header.CalculateHash();
             _genesis3Validators.Header.Hash = _genesis3Validators.Header.CalculateHash();
+            _genesis1Validator.Header.Hash = _genesis1Validator.Header.CalculateHash();
 
             IMainProcessingContext mainProcessingContext = container.Resolve<IMainProcessingContext>();
             mainProcessingContext.BlockchainProcessor.Start();
@@ -187,6 +189,8 @@ public class CliqueBlockProducerTests
 
         private readonly Block _genesis;
 
+        private readonly Block _genesis1Validator;
+
         private Block GetGenesis(int validatorsCount = 2)
         {
             Hash256 parentHash = Keccak.Zero;
@@ -198,7 +202,10 @@ public class CliqueBlockProducerTests
             ulong timestamp = _timestamper.UnixTime.Seconds - _cliqueConfig.BlockPeriod;
             string extraDataHex = "0x2249276d20646f6e652077616974696e672e2e2e20666f7220626c6f636b2066";
             extraDataHex += TestItem.PrivateKeyA.Address.ToString(false).Replace("0x", string.Empty);
-            extraDataHex += TestItem.PrivateKeyB.Address.ToString(false).Replace("0x", string.Empty);
+            if (validatorsCount > 1)
+            {
+                extraDataHex += TestItem.PrivateKeyB.Address.ToString(false).Replace("0x", string.Empty);
+            }
             if (validatorsCount > 2)
             {
                 extraDataHex += TestItem.PrivateKeyC.Address.ToString(false).Replace("0x", string.Empty);
@@ -266,6 +273,16 @@ public class CliqueBlockProducerTests
             return this;
         }
 
+        public On ProcessGenesis1Validator()
+        {
+            foreach (KeyValuePair<PrivateKey, IBlockTree> node in _blockTrees)
+            {
+                ProcessGenesis1Validator(node.Key);
+            }
+
+            return this;
+        }
+
         public On ProcessBadGenesis()
         {
             foreach (KeyValuePair<PrivateKey, IBlockTree> node in _blockTrees)
@@ -281,6 +298,14 @@ public class CliqueBlockProducerTests
             using IDisposable _ = _containers[nodeKey].Resolve<IMainProcessingContext>().WorldState.BeginScope(IWorldState.PreGenesis);
             if (_logger.IsInfo) _logger.Info($"SUGGESTING GENESIS ON {nodeKey.Address}");
             _blockTrees[nodeKey].SuggestBlock(_genesis).Should().Be(AddBlockResult.Added);
+            _blockEvents[nodeKey].WaitOne(_timeout);
+            return this;
+        }
+
+        public On ProcessGenesis1Validator(PrivateKey nodeKey)
+        {
+            using IDisposable _ = _containers[nodeKey].Resolve<IMainProcessingContext>().WorldState.BeginScope(IWorldState.PreGenesis);
+            _blockTrees[nodeKey].SuggestBlock(_genesis1Validator);
             _blockEvents[nodeKey].WaitOne(_timeout);
             return this;
         }
@@ -355,6 +380,14 @@ public class CliqueBlockProducerTests
             if (_logger.IsInfo) _logger.Info($"ASSERTING {vote} VOTE ON {address} AT BLOCK {number}");
             Assert.That(() => _blockTrees[nodeKey].FindBlock(number, BlockTreeLookupOptions.None)?.Header.Nonce, Is.EqualTo(vote ? Consensus.Clique.Clique.NonceAuthVote : Consensus.Clique.Clique.NonceDropVote).After(_timeout, 100), nodeKey + " vote nonce");
             Assert.That(() => _blockTrees[nodeKey].FindBlock(number, BlockTreeLookupOptions.None)?.Beneficiary, Is.EqualTo(address).After(_timeout, 100), nodeKey.Address + " vote nonce");
+            return this;
+        }
+
+        public On AssertBeneficiary(PrivateKey nodeKey, long number, Address expected)
+        {
+            WaitForNumber(nodeKey, number);
+            if (_logger.IsInfo) _logger.Info($"ASSERTING BENEFICIARY {expected} AT BLOCK {number}");
+            Assert.That(_blockTrees[nodeKey].FindBlock(number, BlockTreeLookupOptions.None)?.Beneficiary, Is.EqualTo(expected), nodeKey.Address + $" block {number} beneficiary");
             return this;
         }
 
@@ -620,6 +653,20 @@ public class CliqueBlockProducerTests
             .AssertOutOfTurn(TestItem.PrivateKeyB, 1)
             .StopNode(TestItem.PrivateKeyB);
 
+    [Test, Retry(3)]
+    public async Task Lone_validator_keeps_producing_when_it_is_its_own_beneficiary() =>
+        // Bourse fork: every block carries its signer as the beneficiary. The snapshot logic must
+        // not read that as the lone signer drop-voting itself off the signer list - if it did, the
+        // chain would stall right after block 1.
+        await On.FastGoerli
+            .CreateNode(TestItem.PrivateKeyA)
+            .ProcessGenesis1Validator()
+            .AssertHeadBlockIs(TestItem.PrivateKeyA, 3)
+            .AssertBeneficiary(TestItem.PrivateKeyA, 1, TestItem.AddressA)
+            .AssertBeneficiary(TestItem.PrivateKeyA, 3, TestItem.AddressA)
+            .AssertSignersCount(TestItem.PrivateKeyA, 3, 1)
+            .StopNode(TestItem.PrivateKeyA);
+
     [Test]
     public async Task Cannot_produce_blocks_when_not_on_signers_list() =>
         await On.Goerli
@@ -644,7 +691,7 @@ public class CliqueBlockProducerTests
             .VoteToInclude(TestItem.PrivateKeyA, TestItem.AddressC)
             .UncastVote(TestItem.PrivateKeyA, TestItem.AddressC)
             .ProcessGenesis()
-            .AssertVote(TestItem.PrivateKeyA, 1, Address.Zero, false)
+            .AssertVote(TestItem.PrivateKeyA, 1, TestItem.AddressA, false)
             .StopNode(TestItem.PrivateKeyA);
 
     [Test]
@@ -743,7 +790,7 @@ public class CliqueBlockProducerTests
             .CreateNode(TestItem.PrivateKeyA)
             .VoteToExclude(TestItem.PrivateKeyA, TestItem.AddressC)
             .ProcessGenesis()
-            .AssertVote(TestItem.PrivateKeyA, 1, Address.Zero, false)
+            .AssertVote(TestItem.PrivateKeyA, 1, TestItem.AddressA, false)
             .StopNode(TestItem.PrivateKeyA);
 
     [Test]
@@ -752,7 +799,7 @@ public class CliqueBlockProducerTests
             .CreateNode(TestItem.PrivateKeyA)
             .VoteToInclude(TestItem.PrivateKeyA, TestItem.AddressB)
             .ProcessGenesis()
-            .AssertVote(TestItem.PrivateKeyA, 1, Address.Zero, false)
+            .AssertVote(TestItem.PrivateKeyA, 1, TestItem.AddressA, false)
             .StopNode(TestItem.PrivateKeyA);
 
     [Test]
