@@ -160,7 +160,7 @@ public class BlockHeaderTests
     [TestCase(100, 100, 88, 0)]
     [TestCase(100, 300, 267, 10)]
     [TestCase(500, 200, 185, 200)]
-    [TestCase(500, 0, 1, 200)]
+    [TestCase(500, 0, 0, 200)]
     [TestCase(21, 23, 23, 21)]
     [TestCase(21, 23, 61, 300)]
     [TestCase(500, 0, 10, 200, 10)]
