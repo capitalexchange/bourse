@@ -179,15 +179,15 @@ public class CliqueSealEngineTests
         for (int i = 0; i < _signers.Count; i++) signers[i] = _signers[i].Address;
         Array.Sort(signers, GenericComparer.GetOptimized<Address>());
 
-        byte[] extraData = new byte[Clique.ExtraVanityLength + signers.Length * Address.Size + Clique.ExtraSealLength];
+        byte[] extraData = new byte[Consensus.Clique.Clique.ExtraVanityLength + signers.Length * Address.Size + Consensus.Clique.Clique.ExtraSealLength];
         for (int i = 0; i < signers.Length; i++)
         {
-            signers[i].Bytes.CopyTo(extraData.AsSpan(Clique.ExtraVanityLength + i * Address.Size, Address.Size));
+            signers[i].Bytes.CopyTo(extraData.AsSpan(Consensus.Clique.Clique.ExtraVanityLength + i * Address.Size, Address.Size));
         }
 
-        BlockHeader header = new(parent.Hash, Keccak.OfAnEmptySequenceRlp, beneficiary, Clique.DifficultyInTurn, number, 4700000, (ulong)DateTimeOffset.UtcNow.ToUnixTimeSeconds(), extraData);
+        BlockHeader header = new(parent.Hash, Keccak.OfAnEmptySequenceRlp, beneficiary, Consensus.Clique.Clique.DifficultyInTurn, number, 4700000, (ulong)DateTimeOffset.UtcNow.ToUnixTimeSeconds(), extraData);
         header.MixHash = Keccak.Zero;
-        header.Nonce = Clique.NonceDropVote;
+        header.Nonce = Consensus.Clique.Clique.NonceDropVote;
         Block block = new(header);
         block.Header.Bloom = Bloom.Empty;
         block.Header.Hash = block.CalculateHash();
