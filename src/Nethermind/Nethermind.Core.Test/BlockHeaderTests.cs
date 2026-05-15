@@ -162,7 +162,9 @@ public class BlockHeaderTests
     [TestCase(500, 200, 185, 200)]
     [TestCase(500, 0, 0, 200)]
     [TestCase(21, 23, 23, 21)]
-    [TestCase(21, 23, 61, 300)]
+    // Bourse fork: blocks above target no longer push the base fee up; the calculator pins
+    // to MinimumBaseFee instead so the chain stays at 1 wei. (Canonical EIP-1559 here = 61.)
+    [TestCase(21, 23, 1, 300)]
     [TestCase(500, 0, 10, 200, 10)]
     [TestCase(100, 100, 88, 0, 80)]
     [TestCase(100, 100, 110, 0, 110)]

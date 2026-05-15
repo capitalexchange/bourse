@@ -626,25 +626,28 @@ public partial class EthRpcModuleTests
     [Test]
     public async Task Estimate_gas_baseFeePerGas_override_allows_tx_with_gasPrice_below_real_baseFee()
     {
-        // In London the block has a non-zero baseFee (≥ 1 gwei).
-        // A legacy tx with explicit gasPrice=1 wei fails because ShouldSetBaseFee() is true
-        // (gasPrice is set) and gasPrice < baseFee.
-        // With baseFeePerGas=0 override the check passes and the tx can be estimated.
-        // A state override funds the sender so balance is not the limiting factor.
+        // Bourse fork: base fee is pinned at 1 wei everywhere, so the pre-Bourse direction of this
+        // test (baseFee=1 gwei chain ⇒ low-gasPrice tx rejected; override baseFee=0 ⇒ passes)
+        // can't be reproduced — there's no high-baseFee state to start from. Inverted to exercise
+        // the same override mechanism from the other direction: a tx with maxFeePerGas=1 wei
+        // (= chain baseFee) is accepted by default; with baseFeePerGas=0x100 (override > tx fee)
+        // the same tx is rejected.
         using Context ctx = await Context.CreateWithLondonEnabled();
 
         string sender = TestItem.AddressA.ToString();
         object? transaction = JsonSerializer.Deserialize<object>(
-            "{\"from\":\"" + sender + "\",\"to\":\"0xc200000000000000000000000000000000000000\",\"gasPrice\":\"0x1\"}");
+            "{\"type\":\"0x2\",\"from\":\"" + sender + "\",\"to\":\"0xc200000000000000000000000000000000000000\",\"maxFeePerGas\":\"0x1\",\"maxPriorityFeePerGas\":\"0x1\"}");
         object? stateOverride = JsonSerializer.Deserialize<object>(
             "{\"" + sender + "\":{\"balance\":\"0xde0b6b3a7640000\"}}"); // 1 ETH
 
         string withoutOverride = await ctx.Test.TestEthRpc("eth_estimateGas", transaction, "latest", stateOverride);
-        JToken.Parse(withoutOverride)["error"].Should().NotBeNull(because: "gasPrice(1 wei) < baseFee should fail without block override");
+        JToken.Parse(withoutOverride)["result"]!.Value<string>().Should().Be("0x5208",
+            because: "maxFeePerGas(1) >= baseFee(1 wei pinned) on Bourse, no override needed");
 
-        object? blockOverride = JsonSerializer.Deserialize<object>("""{"baseFeePerGas":"0x0"}""");
+        object? blockOverride = JsonSerializer.Deserialize<object>("""{"baseFeePerGas":"0x100"}""");
         string withOverride = await ctx.Test.TestEthRpc("eth_estimateGas", transaction, "latest", stateOverride, blockOverride);
-        JToken.Parse(withOverride)["result"]!.Value<string>().Should().Be("0x5208");
+        JToken.Parse(withOverride)["error"].Should().NotBeNull(
+            because: "block override raised baseFee to 0x100, so maxFeePerGas(1) < baseFee should fail");
     }
 
     [Test]

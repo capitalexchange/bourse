@@ -37,11 +37,14 @@ public sealed class DefaultBaseFeeCalculator : IBaseFeeCalculator
             }
             else if (parent.GasUsed > parentGasTarget)
             {
-                long gasDelta = parent.GasUsed - parentGasTarget;
-                UInt256 feeDelta = UInt256.Max(
-                    parentBaseFee * (UInt256)gasDelta / (UInt256)parentGasTarget / specFor1559.BaseFeeMaxChangeDenominator,
-                    UInt256.One);
-                expectedBaseFee = parentBaseFee + feeDelta;
+                // Bourse fork deviation from EIP-1559: pin the base fee at MinimumBaseFee
+                // (1 wei) instead of letting heavy blocks push it back up. Combined with the
+                // 1-wei ForkBaseFee and the under-target decay, this keeps the chain at
+                // 1 wei permanently — gas is effectively free without zeroing the base fee
+                // (which would disable EIP-1559's effective-priority-fee semantics).
+                expectedBaseFee = parentBaseFee.IsZero
+                    ? parentBaseFee
+                    : Eip1559Constants.MinimumBaseFee;
             }
             else
             {

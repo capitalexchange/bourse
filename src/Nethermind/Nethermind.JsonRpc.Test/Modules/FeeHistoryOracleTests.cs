@@ -118,9 +118,12 @@ namespace Nethermind.JsonRpc.Test.Modules
             resultWrapper.Result.ResultType.Should().Be(ResultType.Failure);
         }
 
-        [TestCase(3, 3, 5, 6)] //Target gas used: 3/2 = 1.5 | Actual Gas used = 3 | Base Fee Delta = Max((((3-1.5)/1.5 * 5) / 8, 1) = 1 | Next Base Fee = 5 + 1 = 6
-        [TestCase(3, 3, 11, 13)] //Target gas used: 3/2 = 1.5 | Actual Gas used = 3 | Base Fee Delta = Max((((3-1.5)/1.5) * 11) / 8, 1) = 2 | Next Base Fee = 11 + 2 = 13
-        [TestCase(100, 95, 20, 22)] //Target gas used: 100/2 = 50 | Actual Gas used = 95 | Base Fee Delta = Max((((95-50)/50) * 20) / 8, 1) = 2 | Next Base Fee = 20 + 2 = 22
+        // Bourse fork: blocks above target no longer push the base fee up — the calculator pins
+        // to MinimumBaseFee (1 wei) instead so the chain stays at 1 wei. Cases below have
+        // expectedNextBaseFee == 1 in the over-target rows (canonical EIP-1559 values in comments).
+        [TestCase(3, 3, 5, 1)]   //Target gas used: 3/2 = 1.5 | Actual Gas used = 3   | (Canonical Bourse-pre: 6)
+        [TestCase(3, 3, 11, 1)]  //Target gas used: 3/2 = 1.5 | Actual Gas used = 3   | (Canonical Bourse-pre: 13)
+        [TestCase(100, 95, 20, 1)] //Target gas used: 100/2 = 50 | Actual Gas used = 95 | (Canonical Bourse-pre: 22)
         [TestCase(100, 40, 20, 19)] //Target gas used: 100/2 = 50 | Actual Gas used = 40 | Base Fee Delta = Max((((50-40)/50) * 20) / 8, 1) = 1 | Next Base Fee = 20 - 1 = 19
         [TestCase(100, 40, 50, 49)] //Target gas used: 100/2 = 50 | Actual Gas used = 40 | Base Fee Delta = Max((((50-40)/50) * 50) / 8, 1) = 1 | Next Base Fee = 50 - 1 = 49
         public void GetFeeHistory_IfLondonEnabled_NextBaseFeePerGasCalculatedCorrectly(long gasLimit, long gasUsed, long baseFee, long expectedNextBaseFee)

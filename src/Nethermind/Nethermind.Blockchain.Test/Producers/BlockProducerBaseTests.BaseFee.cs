@@ -260,7 +260,15 @@ public partial class BlockProducerBaseTests
         await scenario.Finish();
     }
 
+    // Bourse fork: the next 5 tests assert canonical EIP-1559 decay/increase semantics
+    // (875_000_000 wei → 765_625_000 → … and bumps when over target). On Bourse the base fee
+    // is pinned at MinimumBaseFee (1 wei) from the fork block onward — see
+    // Eip1559Constants.DefaultForkBaseFee and the BaseFeeCalculator clamps. These tests are
+    // ignored rather than rewritten because their entire premise is "watch the base fee move"
+    // and Bourse intentionally stops it from moving.
+
     [Test, MaxTime(Timeout.MaxTestTime)]
+    [Ignore("Bourse fork pins base fee at 1 wei; canonical EIP-1559 empty-block decay no longer applies.")]
     public async Task BlockProducer_returns_correctly_decreases_base_fee_on_empty_blocks()
     {
         BaseFeeTestScenario.ScenarioBuilder scenario = BaseFeeTestScenario.GoesLikeThis()
@@ -276,6 +284,7 @@ public partial class BlockProducerBaseTests
     }
 
     [Test, MaxTime(Timeout.MaxTestTime)]
+    [Ignore("Bourse fork pins base fee at 1 wei; under-target decay no longer applies.")]
     public async Task BaseFee_should_decrease_when_we_send_transactions_below_gas_target()
     {
         long gasLimit = 3000000;
@@ -294,6 +303,7 @@ public partial class BlockProducerBaseTests
     }
 
     [Test, MaxTime(Timeout.MaxTestTime)]
+    [Ignore("Bourse fork pins base fee at 1 wei; this scenario's expected 875 Mwei decay no longer applies.")]
     public async Task BaseFee_should_not_change_when_we_send_transactions_equal_gas_target()
     {
         long gasTarget = 3000000;
@@ -312,6 +322,7 @@ public partial class BlockProducerBaseTests
     }
 
     [Test, MaxTime(Timeout.MaxTestTime)]
+    [Ignore("Bourse fork pins base fee at 1 wei; the over-target increase branch is also clamped to 1 wei.")]
     public async Task BaseFee_should_increase_when_we_send_transactions_above_gas_target()
     {
         long gasTarget = 3000000;
@@ -331,6 +342,7 @@ public partial class BlockProducerBaseTests
     }
 
     [Test, MaxTime(Timeout.MaxTestTime)]
+    [Ignore("Bourse fork pins base fee at 1 wei; 'previously too-low tx becomes includable as fee decays' no longer applies.")]
     public async Task When_base_fee_decreases_previously_fee_too_low_transaction_is_included()
     {
         long gasTarget = 3000000;

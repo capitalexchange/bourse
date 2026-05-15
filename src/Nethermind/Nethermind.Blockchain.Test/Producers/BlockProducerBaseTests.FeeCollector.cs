@@ -57,7 +57,9 @@ public partial class BlockProducerBaseTests
             .SendLegacyTransaction(gasTarget / 2, 20.GWei)
             .SendEip1559Transaction(gasTarget / 2, 1.GWei, 20.GWei)
             .SendLegacyTransaction(gasTarget / 2, 20.GWei)
-            .AssertNewBlockFeeCollected(4500000.GWei);
+            // Bourse fork: base fee is pinned at 1 wei (was 1 gwei = ForkBaseFee), so burn per
+            // gas dropped by 10^9: 4_500_000 gas * 1 wei = 4_500_000 wei (was 4_500_000 gwei).
+            .AssertNewBlockFeeCollected(4500000);
         await scenario.Finish();
     }
 
