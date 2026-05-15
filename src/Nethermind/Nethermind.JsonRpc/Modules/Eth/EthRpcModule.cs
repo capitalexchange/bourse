@@ -24,6 +24,7 @@ using Nethermind.Int256;
 using Nethermind.JsonRpc.Data;
 using Nethermind.JsonRpc.Modules.Eth.FeeHistory;
 using Nethermind.JsonRpc.Modules.Eth.GasPrice;
+using Nethermind.KeyStore.Config;
 using Nethermind.Logging;
 using Nethermind.Network;
 using Nethermind.Network.Contract.P2P;
@@ -75,7 +76,8 @@ public partial class EthRpcModule(
     IForkInfo forkInfo,
     ILogIndexConfig? logIndexConfig,
     ulong? secondsPerSlot,
-    HeadBlockSignal headBlockSignal) : IEthRpcModule
+    HeadBlockSignal headBlockSignal,
+    IKeyStoreConfig? keyStoreConfig = null) : IEthRpcModule
 {
     public const int GetProofStorageKeyLimit = 1000;
     public const int MaxGetStorageSlots = StorageValuesRequest.MaxSlots;
@@ -97,7 +99,24 @@ public partial class EthRpcModule(
     protected readonly IProtocolsManager _protocolsManager = protocolsManager ?? throw new ArgumentNullException(nameof(protocolsManager));
     protected readonly ulong _secondsPerSlot = secondsPerSlot ?? throw new ArgumentNullException(nameof(secondsPerSlot));
     private readonly HeadBlockSignal _headBlockSignal = headBlockSignal ?? throw new ArgumentNullException(nameof(headBlockSignal));
+    private readonly Address _coinbase = ParseCoinbase(keyStoreConfig?.BlockAuthorAccount);
     readonly JsonSerializerOptions UnchangedDictionaryKeyOptions = new(EthereumJsonSerializer.JsonOptionsIndented) { DictionaryKeyPolicy = null };
+
+    /// <summary>
+    /// Resolves the local coinbase address from the configured <c>BlockAuthorAccount</c>.
+    /// </summary>
+    /// <remarks>
+    /// Bourse fork: upstream Nethermind hardcodes <c>eth_coinbase</c> to <see cref="Address.Zero"/>.
+    /// On Bourse the block author is known (the Clique signer wired up via
+    /// <c>KeyStore.BlockAuthorAccount</c> in <c>bourse.json</c>), so we surface it here. Returns
+    /// <see cref="Address.Zero"/> when the field is missing or unparsable, matching the upstream
+    /// fallback.
+    /// </remarks>
+    private static Address ParseCoinbase(string? blockAuthorAccount)
+    {
+        if (string.IsNullOrWhiteSpace(blockAuthorAccount)) return Address.Zero;
+        return Address.TryParse(blockAuthorAccount, out Address? parsed) ? parsed! : Address.Zero;
+    }
 
     public ResultWrapper<string> eth_protocolVersion()
     {
@@ -109,7 +128,7 @@ public partial class EthRpcModule(
 
     public ResultWrapper<byte[]> eth_snapshot() => ResultWrapper<byte[]>.Fail("eth_snapshot not supported");
 
-    public ResultWrapper<Address> eth_coinbase() => ResultWrapper<Address>.Success(Address.Zero);
+    public ResultWrapper<Address> eth_coinbase() => ResultWrapper<Address>.Success(_coinbase);
 
     public async Task<ResultWrapper<UInt256?>> eth_gasPrice() => ResultWrapper<UInt256?>.Success(await _gasPriceOracle.GetGasPriceEstimate());
 

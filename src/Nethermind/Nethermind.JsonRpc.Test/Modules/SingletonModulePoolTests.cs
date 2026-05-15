@@ -18,6 +18,7 @@ using Nethermind.Core.Test.Builders;
 using Nethermind.Facade.Eth;
 using Nethermind.JsonRpc.Modules.Eth.FeeHistory;
 using Nethermind.JsonRpc.Modules.Eth.GasPrice;
+using Nethermind.KeyStore.Config;
 using Nethermind.Config;
 using Nethermind.Db.LogIndex;
 using Nethermind.Network;
@@ -57,7 +58,8 @@ namespace Nethermind.JsonRpc.Test.Modules
                 Substitute.For<IProtocolsManager>(),
                 new BlocksConfig(),
                 Substitute.For<IForkInfo>(),
-                Substitute.For<ILogIndexConfig>());
+                Substitute.For<ILogIndexConfig>(),
+                Substitute.For<IKeyStoreConfig>());
             return Task.CompletedTask;
         }
 

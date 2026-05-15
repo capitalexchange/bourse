@@ -10,6 +10,7 @@ using Nethermind.Facade;
 using Nethermind.Facade.Eth;
 using Nethermind.JsonRpc.Modules.Eth.GasPrice;
 using Nethermind.JsonRpc.Modules.Eth.FeeHistory;
+using Nethermind.KeyStore.Config;
 using Nethermind.Logging;
 using Nethermind.Network;
 using Nethermind.State;
@@ -35,7 +36,8 @@ namespace Nethermind.JsonRpc.Modules.Eth
         IProtocolsManager protocolsManager,
         IBlocksConfig blocksConfig,
         IForkInfo forkInfo,
-        ILogIndexConfig logIndexConfig)
+        ILogIndexConfig logIndexConfig,
+        IKeyStoreConfig keyStoreConfig)
         : ModuleFactoryBase<IEthRpcModule>
     {
         private readonly ulong _secondsPerSlot = blocksConfig.SecondsPerSlot;
@@ -61,6 +63,7 @@ namespace Nethermind.JsonRpc.Modules.Eth
                 forkInfo,
                 logIndexConfig,
                 _secondsPerSlot,
-                _headBlockSignal);
+                _headBlockSignal,
+                keyStoreConfig);
     }
 }
