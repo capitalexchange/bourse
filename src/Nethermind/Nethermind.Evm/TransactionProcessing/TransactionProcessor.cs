@@ -1251,9 +1251,16 @@ namespace Nethermind.Evm.TransactionProcessing
                 collectedFees += blobBaseFee;
             }
 
-            if (spec.FeeCollector is not null && !collectedFees.IsZero)
+            // Bourse fork: redirect the EIP-1559 basefee from the canonical burn to the block's
+            // gas beneficiary (the Clique signer) by default, so basefee × gas stays inside the
+            // chain's wallets as validator income rather than being permanently removed from
+            // supply. This is what makes a single-validator Bourse self-sustaining — the priority
+            // fee + basefee both end up at the signer, and a sweep transaction can recycle them.
+            // Chains that explicitly set FeeCollector (e.g. Gnosis) still route there.
+            Address? feeRecipient = spec.FeeCollector ?? header.GasBeneficiary;
+            if (feeRecipient is not null && !collectedFees.IsZero)
             {
-                WorldState.AddToBalanceAndCreateIfNotExists(spec.FeeCollector, collectedFees, spec);
+                WorldState.AddToBalanceAndCreateIfNotExists(feeRecipient, collectedFees, spec);
             }
 
             if (tracer.IsTracingFees)
