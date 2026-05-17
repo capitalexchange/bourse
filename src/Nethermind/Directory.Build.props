@@ -10,7 +10,7 @@
   <PropertyGroup Label="ProductInfo">
     <SourceDateEpoch>$(SOURCE_DATE_EPOCH)</SourceDateEpoch>
     <SourceDateEpoch Condition="'$(SourceDateEpoch)' == ''">$([System.DateTimeOffset]::UtcNow.ToUnixTimeSeconds())</SourceDateEpoch>
-    <VersionPrefix>1.0.4</VersionPrefix>
+    <VersionPrefix>1.0.5</VersionPrefix>
     <VersionSuffix>release</VersionSuffix>
     <!-- Bourse fork: keep the version string clean (no +<git-sha> suffix). -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>

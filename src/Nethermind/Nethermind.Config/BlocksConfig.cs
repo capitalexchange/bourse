@@ -51,7 +51,14 @@ namespace Nethermind.Config
         public bool Enabled { get; set; }
         public long? TargetBlockGasLimit { get; set; } = null;
 
-        public UInt256 MinGasPrice { get; set; } = 1.Wei;
+        // Bourse fork: was 1.Wei. The producer-side MinGasPriceTxFilter rejected any tx whose
+        // effective priority fee was below this floor — that meant a tx with maxPriorityFeePerGas=0
+        // (the value the patched GasPriceOracle suggests on Bourse) was accepted into the pool
+        // but never picked up by the block producer. Drop the floor to 0 so the producer's
+        // tx-source pipeline accepts zero-priority txs end-to-end. The basefee redirect
+        // (f73bfbf3a4) still pays the validator 1 wei × gasUsed per tx, so the producer isn't
+        // working for free.
+        public UInt256 MinGasPrice { get; set; } = UInt256.Zero;
 
         public bool RandomizedBlocks { get; set; }
 
