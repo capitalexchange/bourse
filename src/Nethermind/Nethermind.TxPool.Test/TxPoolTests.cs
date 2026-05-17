@@ -1472,7 +1472,11 @@ namespace Nethermind.TxPool.Test
         [TestCase(true, 1, 0, true)]
         [TestCase(true, 0, 0, true)]
         [TestCase(false, 1, 1, true)]
-        [TestCase(false, 1, 0, false)]
+        // Bourse fork: was (false, 1, 0, false) — the FeeTooLowFilter no longer rejects
+        // affordableGasPrice == 0 (basefee redirected to validator, so zero-tip txs still
+        // pay 1 wei × gas to the block beneficiary and are includable). Tx with balance
+        // covering 1 wei × 21000 gas and fee=0 is now accepted on Bourse.
+        [TestCase(false, 1, 0, true)]
         [TestCase(false, 0, 0, false)]
         public void Should_filter_txs_depends_on_priority_contract(bool thereIsPriorityContract, int balance, int fee, bool shouldBeAccepted)
         {

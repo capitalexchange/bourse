@@ -33,13 +33,16 @@ namespace Nethermind.TxPool.Filters
             IReleaseSpec spec = _specProvider.GetCurrentHeadSpec();
             bool isEip1559Enabled = spec.IsEip1559Enabled;
             UInt256 affordableGasPrice = tx.CalculateGasPrice(isEip1559Enabled, _headInfo.CurrentBaseFee);
-            // Don't accept zero fee txns even if pool is empty as will never run
-            if (isEip1559Enabled && !_thereIsPriorityContract && !tx.IsFree() && affordableGasPrice.IsZero)
-            {
-                Metrics.PendingTransactionsTooLowFee++;
-                if (_logger.IsTrace) _logger.Trace($"Skipped adding transaction {tx.ToString("  ")}, too low payable gas price with options {handlingOptions} from {new StackTrace()}");
-                return AcceptTxResult.FeeTooLow;
-            }
+
+            // Bourse fork: the upstream rejection of `affordableGasPrice == 0` was an anti-spam
+            // heuristic for public chains where a zero-priority tx pays nothing to the miner and
+            // can sit in the pool forever. On Bourse the base fee is pinned at 1 wei and the
+            // basefee is redirected to the block beneficiary (commit f73bfbf3a4), so even a tx
+            // with priorityFee=0 still pays `1 wei × gasUsed` to the validator and is genuinely
+            // includable. The eth_sendTransaction guard from 5274565f19 still rejects txs whose
+            // maxFeePerGas is below the current baseFee, so zero-fee txs never reach this point.
+            // Drop the IsZero rejection so a wallet that fills `maxFee=1, priority=0` (matching
+            // what the patched GasPriceOracle suggests) is accepted into the pool.
 
             TxDistinctSortedPool relevantPool = (tx.SupportsBlobs ? _blobTxs : _txs);
             if (relevantPool.IsFull() && relevantPool.TryGetLast(out Transaction? lastTx)

@@ -35,52 +35,30 @@ namespace Nethermind.JsonRpc.Modules.Eth.GasPrice
 
         public virtual ValueTask<UInt256> GetGasPriceEstimate()
         {
+            // Bourse fork: base fee is pinned at 1 wei (see Eip1559Constants.DefaultForkBaseFee
+            // and the BaseFeeCalculator clamps) and the basefee is redirected to the validator
+            // (f73bfbf3a4), so a Bourse tx only needs to pay `baseFee × gasUsed = 1 wei × gas`.
+            // Return the head's baseFee verbatim so legacy wallets that read eth_gasPrice fill
+            // `gasPrice = baseFee = 1 wei` and don't over-pay a percentile-derived estimate
+            // skewed by historical priority-fee txs. Falls back to 1 wei if the chain has no
+            // head yet.
             Block? headBlock = _blockFinder.Head;
-            if (headBlock is null)
-            {
-                return ValueTask.FromResult(FallbackGasPrice());
-            }
-
-            Hash256 headBlockHash = headBlock.Hash!;
-            if (_gasPriceEstimation.TryGetPrice(headBlockHash, out UInt256? price))
-            {
-                return ValueTask.FromResult(price!.Value);
-            }
-
-            IEnumerable<UInt256> txGasPrices = GetGasPricesFromRecentBlocks(headBlock.Number);
-            UInt256 gasPriceEstimate = GetGasPriceAtPercentile(txGasPrices.ToList()) ?? GetMinimumGasPrice(headBlock.BaseFeePerGas);
-            gasPriceEstimate = UInt256.Min(gasPriceEstimate!, EthGasPriceConstants.MaxGasPrice);
-            _gasPriceEstimation.Set(headBlockHash, gasPriceEstimate);
-            return ValueTask.FromResult(gasPriceEstimate!);
+            UInt256 estimate = headBlock?.BaseFeePerGas ?? UInt256.One;
+            return ValueTask.FromResult(estimate);
         }
 
         internal IEnumerable<UInt256> GetGasPricesFromRecentBlocks(long blockNumber) =>
             GetGasPricesFromRecentBlocks(blockNumber, BlockLimit,
             static (transaction, eip1559Enabled, baseFee) => transaction.CalculateEffectiveGasPrice(eip1559Enabled, baseFee));
 
-        public virtual UInt256 GetMaxPriorityGasFeeEstimate()
-        {
-            Block? headBlock = _blockFinder.Head;
-            if (headBlock is null)
-            {
-                return EthGasPriceConstants.FallbackMaxPriorityFeePerGas;
-            }
-
-            Hash256 headBlockHash = headBlock.Hash!;
-            if (_maxPriorityFeePerGasEstimation.TryGetPrice(headBlockHash, out UInt256? price))
-            {
-                return price!.Value;
-            }
-
-            IEnumerable<UInt256> gasPricesWithFee = GetGasPricesFromRecentBlocks(headBlock.Number,
-                EthGasPriceConstants.DefaultBlocksLimitMaxPriorityFeePerGas,
-                static (transaction, eip1559Enabled, baseFee) => transaction.CalculateMaxPriorityFeePerGas(eip1559Enabled, baseFee));
-
-            UInt256 gasPriceEstimate = GetGasPriceAtPercentile(gasPricesWithFee.ToList()) ?? _maxPriorityFeePerGasEstimation.LastPrice ?? GetMinimumGasPrice(headBlock.BaseFeePerGas);
-            gasPriceEstimate = UInt256.Min(gasPriceEstimate!, EthGasPriceConstants.MaxGasPrice);
-            _maxPriorityFeePerGasEstimation.Set(headBlockHash, gasPriceEstimate);
-            return gasPriceEstimate!;
-        }
+        /// <summary>
+        /// Bourse fork: priority fee is flat-zero. The chain has a single validator that
+        /// earns its income via the basefee redirect (f73bfbf3a4), not via priority tips,
+        /// so wallets querying <c>eth_maxPriorityFeePerGas</c> should suggest 0 — that's the
+        /// actual includable value on a Bourse chain. The TxPool's <c>IsZero</c> rejection was
+        /// dropped accordingly so a wallet filling <c>maxPriorityFeePerGas = 0</c> is accepted.
+        /// </summary>
+        public virtual UInt256 GetMaxPriorityGasFeeEstimate() => UInt256.Zero;
 
         private UInt256 GetMinimumGasPrice(in UInt256 baseFeePerGas) => (_minGasPrice + baseFeePerGas) * _defaultMinGasPriceMultiplier / 100ul;
 

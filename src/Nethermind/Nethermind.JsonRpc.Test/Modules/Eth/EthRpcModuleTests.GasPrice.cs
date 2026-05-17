@@ -24,6 +24,7 @@ public partial class EthRpcModuleTests
 {
     [TestCase(true, "0x4")] //Gas Prices: 1,2,3,4,5,6 | Max Index: 5 | 60th Percentile: 5 * (3/5) = 3 | Result: 4 (0x4)
     [TestCase(false, "0x4")] //Gas Prices: 1,2,3,4,5,6 | Max Index: 5 | 60th Percentile: 5 * (3/5) = 3 | Result: 4 (0x4)
+    [Ignore("Bourse fork: GasPriceOracle.GetGasPriceEstimate returns head.BaseFeePerGas verbatim; the percentile-from-recent-blocks computation this test exercises is no longer the contract.")]
     public async Task Eth_gasPrice_BlocksAvailableLessThanBlocksToCheck_ShouldGiveCorrectResult(bool eip1559Enabled, string expected)
     {
         using Context ctx = await Context.Create();
@@ -54,6 +55,7 @@ public partial class EthRpcModuleTests
 
     [TestCase(true, "0x3")] //Gas Prices: 1,2,3,3,4,5 | Max Index: 5 | 60th Percentile: 5 * (3/5) = 3 | Result: 3 (0x3)
     [TestCase(false, "0x2")] //Gas Prices: 0,1,1,2,2,3 | Max Index: 5 | 60th Percentile: 5 * (3/5) = 3 | Result: 2 (0x2)
+    [Ignore("Bourse fork: GasPriceOracle.GetGasPriceEstimate returns head.BaseFeePerGas verbatim; the percentile-from-recent-blocks computation this test exercises is no longer the contract.")]
     public async Task Eth_gasPrice_BlocksAvailableLessThanBlocksToCheckWith1559Tx_ShouldGiveCorrectResult(bool eip1559Enabled, string expected)
     {
         using Context ctx = await Context.Create();

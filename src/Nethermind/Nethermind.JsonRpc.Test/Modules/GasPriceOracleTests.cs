@@ -85,6 +85,7 @@ namespace Nethermind.JsonRpc.Test.Modules
         }
 
         [Test]
+        [Ignore("Bourse fork: GasPriceOracle.GetGasPriceEstimate is overridden to return head.BaseFeePerGas verbatim (pinned at 1 wei). The percentile-from-recent-blocks logic this test exercises is no longer used.")]
         public async ValueTask GasPriceEstimate_NoChangeInHeadBlock_ReturnsPreviousGasPrice()
         {
             IBlockFinder blockFinder = Substitute.For<IBlockFinder>();
@@ -102,6 +103,7 @@ namespace Nethermind.JsonRpc.Test.Modules
 
         [TestCase(null)]
         [TestCase(100ul)]
+        [Ignore("Bourse fork: GasPriceOracle.GetGasPriceEstimate is overridden to return head.BaseFeePerGas verbatim — no MinGasPrice/PriceCache fallback path.")]
         public async ValueTask GasPriceEstimate_IfPreviousGasPriceDoesNotExist_ShouldBeEmptyPrice(ulong? gasPrice)
         {
             IBlockFinder blockFinder = Substitute.For<IBlockFinder>();
@@ -115,6 +117,7 @@ namespace Nethermind.JsonRpc.Test.Modules
 
         [TestCase(3)]
         [TestCase(10)]
+        [Ignore("Bourse fork: GasPriceOracle.GetGasPriceEstimate is overridden to return head.BaseFeePerGas verbatim — _gasPriceEstimation cache is no longer consulted.")]
         public async ValueTask GasPriceEstimate_IfPreviousGasPriceExists_ShouldEqualLastGasPrice(int lastGasPrice)
         {
             IBlockFinder blockFinder = Substitute.For<IBlockFinder>();
@@ -131,6 +134,7 @@ namespace Nethermind.JsonRpc.Test.Modules
 
         [TestCase(null)]
         [TestCase(100ul)]
+        [Ignore("Bourse fork: GasPriceOracle.GetGasPriceEstimate is overridden to return head.BaseFeePerGas verbatim (no 110% multiplier, no MinGasPrice).")]
         public async ValueTask GasPriceEstimate_EmptyChain_BaseFeeIncluded(ulong? gasPrice)
         {
             UInt256 baseFeePerGas = 10.GWei;
@@ -146,6 +150,7 @@ namespace Nethermind.JsonRpc.Test.Modules
         }
 
         [Test]
+        [Ignore("Bourse fork: GasPriceOracle.GetGasPriceEstimate is overridden to return head.BaseFeePerGas verbatim — no MaxGasPrice clamp because head baseFee is pinned at 1 wei anyway.")]
         public async ValueTask GasPriceEstimate_IfCalculatedGasPriceGreaterThanMax_MaxGasPriceReturned()
         {
             Transaction tx = Build.A.Transaction.WithGasPrice(501.GWei).TestObject;
@@ -162,6 +167,7 @@ namespace Nethermind.JsonRpc.Test.Modules
         }
 
         [Test]
+        [Ignore("Bourse fork: GasPriceOracle.GetGasPriceEstimate no longer scans recent blocks (returns head.BaseFeePerGas verbatim), so the FindBlock probe expectation no longer holds.")]
         public void GetGasPricesFromRecentBlocks_IfEightBlocksWithTwoTransactions_CheckEightBlocks()
         {
             int blockNumber = 8;
@@ -193,6 +199,7 @@ namespace Nethermind.JsonRpc.Test.Modules
         }
 
         [Test]
+        [Ignore("Bourse fork: GasPriceOracle.GetGasPriceEstimate no longer scans recent blocks (returns head.BaseFeePerGas verbatim), so the FindBlock probe expectation no longer holds.")]
         public void GetGasPricesFromRecentBlocks_IfLastFiveBlocksWithThreeTxAndFirstFourWithOne_CheckSixBlocks()
         {
             IBlockFinder blockFinder = GetBlockFinderForLastFiveBlocksWithThreeTxAndFirstFourWithOne();

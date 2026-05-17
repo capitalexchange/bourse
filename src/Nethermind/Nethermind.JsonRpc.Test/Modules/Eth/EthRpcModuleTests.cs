@@ -196,9 +196,12 @@ public partial class EthRpcModuleTests
     [Test]
     public async Task eth_maxPriorityFeePerGas_test()
     {
+        // Bourse fork: GasPriceOracle.GetMaxPriorityGasFeeEstimate is overridden to return 0
+        // (the chain's validator earns its income via the basefee redirect, not via priority
+        // tips), so eth_maxPriorityFeePerGas returns 0x0 instead of the canonical 0x1.
         using Context ctx = await Context.Create();
         string serialized = await ctx.Test.TestEthRpc("eth_maxPriorityFeePerGas");
-        Assert.That(serialized, Is.EqualTo("{\"jsonrpc\":\"2.0\",\"result\":\"0x1\",\"id\":67}"), serialized.Replace("\"", "\\\""));
+        Assert.That(serialized, Is.EqualTo("{\"jsonrpc\":\"2.0\",\"result\":\"0x0\",\"id\":67}"), serialized.Replace("\"", "\\\""));
     }
 
     [Test]
