@@ -613,7 +613,10 @@ public class TraceRpcModuleTests
 
         Transaction serviceTransaction = Build.A.Transaction.WithNonce(currentNonceAddressC++)
             .WithTo(TestItem.AddressE)
-            .WithGasPrice(875000000)
+            // Service tx is fee-exempt anyway, but pick a gasPrice ≥ the Bourse pinned baseFee
+            // (Eip1559Constants.MinimumBaseFee = 2_380_952_381) so any filter that double-checks
+            // doesn't drop the tx before it reaches the producer's IsServiceTransaction escape.
+            .WithGasPrice(5_000_000_000)
             .SignedAndResolved(TestItem.PrivateKeyC)
             .WithIsServiceTransaction(true).TestObject;
         await blockchain.AddBlockMayMissTx(serviceTransaction);

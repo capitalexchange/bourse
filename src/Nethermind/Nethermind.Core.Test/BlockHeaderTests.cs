@@ -157,22 +157,23 @@ public class BlockHeaderTests
         Assert.That(baseFee, Is.EqualTo(UInt256.Zero));
     }
 
-    [TestCase(100, 100, 88, 0)]
-    [TestCase(100, 300, 267, 10)]
-    [TestCase(500, 200, 185, 200)]
-    [TestCase(500, 0, 0, 200)]
-    [TestCase(21, 23, 23, 21)]
-    // Bourse fork: blocks above target no longer push the base fee up; the calculator pins
-    // to MinimumBaseFee instead so the chain stays at 1 wei. (Canonical EIP-1559 here = 61.)
-    [TestCase(21, 23, 1, 300)]
-    [TestCase(500, 0, 10, 200, 10)]
-    [TestCase(100, 100, 88, 0, 80)]
-    [TestCase(100, 100, 110, 0, 110)]
-    // Bourse fork: an under-target block always lowers the base fee by at least 1 wei and the
-    // result is clamped to the 1-wei minimum, so it keeps decaying below 7 wei down to 1.
-    [TestCase(100, 7, 6, 0)]
-    [TestCase(100, 2, 1, 0)]
-    [TestCase(100, 1, 1, 0)]
+    // Bourse fork: the calculator pins to Eip1559Constants.MinimumBaseFee (2_380_952_381 wei
+    // = 0x8DEA733D, ≈ 0.00005 BOURSE per 21k-gas transfer) in both the over-target and
+    // under-target branches whenever parentBaseFee > 0. The expected values below encode that
+    // pin literally because TestCase attributes need constant expressions; if MinimumBaseFee
+    // changes, update these too (or switch to a TestCaseSource that reads the constant).
+    [TestCase(100, 100, 2_380_952_381, 0)]    // under-target, decay collapsed to floor
+    [TestCase(100, 300, 2_380_952_381, 10)]   // under-target, decay collapsed to floor
+    [TestCase(500, 200, 2_380_952_381, 200)]  // under-target, decay collapsed to floor
+    [TestCase(500, 0, 0, 200)]                // parentBaseFee == 0 escape: canonical EIP-1559 (stays 0)
+    [TestCase(21, 23, 23, 21)]                // gasUsed == target → no change (this branch unaffected)
+    [TestCase(21, 23, 2_380_952_381, 300)]    // over-target, pinned to MinimumBaseFee
+    [TestCase(500, 0, 10, 200, 10)]           // parentBaseFee=0 → 0, then Eip1559BaseFeeMinValue=10 clamp
+    [TestCase(100, 100, 2_380_952_381, 0, 80)]  // pin > minValue=80, so pin wins
+    [TestCase(100, 100, 2_380_952_381, 0, 110)] // pin > minValue=110, so pin wins
+    [TestCase(100, 7, 2_380_952_381, 0)]      // small parentBaseFee → still pinned to floor
+    [TestCase(100, 2, 2_380_952_381, 0)]
+    [TestCase(100, 1, 2_380_952_381, 0)]
     public void Eip_1559_CalculateBaseFee(long gasTarget, long baseFee, long expectedBaseFee, long gasUsed, long? minimalBaseFee = null)
     {
         IReleaseSpec releaseSpec = ReleaseSpecSubstitute.Create();

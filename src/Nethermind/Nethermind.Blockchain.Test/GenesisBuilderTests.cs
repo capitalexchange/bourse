@@ -38,10 +38,10 @@ public class GenesisBuilderTests
     public void Can_load_withdrawals_with_empty_root()
     {
         Block block = GetGenesisBlock("Specs/shanghai_from_genesis.json");
-        // Bourse fork: hash changed from 0x1326aad…7a547 because DefaultForkBaseFee dropped from
-        // 1 GWei to 1 wei, so the genesis baseFeePerGas inherited by chainspecs that don't set
-        // it explicitly is different now.
-        Assert.That(block.Hash!.ToString(), Is.EqualTo("0xa561d9e720dd477a2eb30dc7e3b009df6d671a2bedc3027834d4a85c64ee76f8"));
+        // Bourse fork: hash changed because DefaultForkBaseFee == MinimumBaseFee, which the
+        // chain-spec-loader defaults baseFeePerGas to when the chainspec doesn't set it
+        // explicitly. Updated whenever MinimumBaseFee changes (currently 2_380_952_381).
+        Assert.That(block.Hash!.ToString(), Is.EqualTo("0xe43737782425d645bf90161e40b09aa39dc9c4182810511111de5d01d2db7b26"));
     }
 
     [Test, MaxTime(Timeout.MaxTestTime)]

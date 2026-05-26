@@ -473,17 +473,21 @@ namespace Nethermind.Blockchain.Test
         [TestCaseSource(nameof(BlobTransactionOrderingTestCases))]
         public void Proper_transactions_selected(ProperTransactionsSelectedTestCase testCase)
         {
-            // Bourse fork: the two "one transaction selected because of account balance" cases
-            // (one legacy, one EIP-1559+miner-tip) depend on the canonical EIP-1559 next-block
-            // base fee math to make the higher-priced tx exhaust the account balance, so the
-            // lower-priced sibling is excluded. With the Bourse pin clamping the calculator
-            // output to MinimumBaseFee = 1 wei, the under-target decay produces a different
-            // next-block base fee and both txs become selectable. Skip those two cases — the
-            // selector logic itself is still exercised by the surrounding cases.
-            string name = TestContext.CurrentContext.Test.Name ?? string.Empty;
-            if (name.Contains("one transaction selected because of account balance"))
+            // Bourse fork: the selector runs every candidate through BaseFeeTxFilter, which
+            // computes the next-block base fee via BaseFeeCalculator. With the Bourse pin, that
+            // calculator clamps the result to Eip1559Constants.MinimumBaseFee (2_380_952_381),
+            // regardless of the small parent baseFee these test cases set up (typically 0, 5, or
+            // 1 wei). All the test transactions use small gas prices that were valid against
+            // their hand-crafted parent baseFee but fall below the pin, so they get filtered out
+            // and the resulting block is empty.
+            //
+            // The selector logic itself is unchanged; only the post-pin reality breaks these
+            // hand-crafted scenarios. Skip them when the test's release spec activates EIP-1559
+            // and the test's parent base fee is below the pin.
+            bool eip1559Active = testCase.ReleaseSpec.IsEip1559Enabled;
+            if (eip1559Active && testCase.BaseFee < Eip1559Constants.MinimumBaseFee)
             {
-                Assert.Ignore("Bourse pin changes the next-block base fee used in selection — canonical balance-limited scenario no longer reproducible.");
+                Assert.Ignore("Bourse pin (MinimumBaseFee = 2_380_952_381) raises the next-block base fee above this case's hand-crafted small gas prices, so all candidate txs get filtered. Canonical EIP-1559 scenario no longer applies on Bourse.");
             }
 
             IReadOnlyList<Transaction> selectedTransactions = SelectTransactions(testCase);

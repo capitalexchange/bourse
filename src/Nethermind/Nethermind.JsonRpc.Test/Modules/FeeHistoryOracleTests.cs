@@ -118,14 +118,15 @@ namespace Nethermind.JsonRpc.Test.Modules
             resultWrapper.Result.ResultType.Should().Be(ResultType.Failure);
         }
 
-        // Bourse fork: blocks above target no longer push the base fee up — the calculator pins
-        // to MinimumBaseFee (1 wei) instead so the chain stays at 1 wei. Cases below have
-        // expectedNextBaseFee == 1 in the over-target rows (canonical EIP-1559 values in comments).
-        [TestCase(3, 3, 5, 1)]   //Target gas used: 3/2 = 1.5 | Actual Gas used = 3   | (Canonical Bourse-pre: 6)
-        [TestCase(3, 3, 11, 1)]  //Target gas used: 3/2 = 1.5 | Actual Gas used = 3   | (Canonical Bourse-pre: 13)
-        [TestCase(100, 95, 20, 1)] //Target gas used: 100/2 = 50 | Actual Gas used = 95 | (Canonical Bourse-pre: 22)
-        [TestCase(100, 40, 20, 19)] //Target gas used: 100/2 = 50 | Actual Gas used = 40 | Base Fee Delta = Max((((50-40)/50) * 20) / 8, 1) = 1 | Next Base Fee = 20 - 1 = 19
-        [TestCase(100, 40, 50, 49)] //Target gas used: 100/2 = 50 | Actual Gas used = 40 | Base Fee Delta = Max((((50-40)/50) * 50) / 8, 1) = 1 | Next Base Fee = 50 - 1 = 49
+        // Bourse fork: the calculator pins to Eip1559Constants.MinimumBaseFee (2_380_952_381 wei)
+        // in both over-target and under-target branches whenever parentBaseFee > 0, so every case
+        // here collapses to the pin value. (Canonical EIP-1559 expectations are in the comments;
+        // none of them survive the pin.)
+        [TestCase(3, 3, 5, 2_380_952_381L)]   //Target=1.5, Used=3 over-target (canonical: 6)
+        [TestCase(3, 3, 11, 2_380_952_381L)]  //Target=1.5, Used=3 over-target (canonical: 13)
+        [TestCase(100, 95, 20, 2_380_952_381L)] //Target=50, Used=95 over-target (canonical: 22)
+        [TestCase(100, 40, 20, 2_380_952_381L)] //Target=50, Used=40 under-target (canonical: 19)
+        [TestCase(100, 40, 50, 2_380_952_381L)] //Target=50, Used=40 under-target (canonical: 49)
         public void GetFeeHistory_IfLondonEnabled_NextBaseFeePerGasCalculatedCorrectly(long gasLimit, long gasUsed, long baseFee, long expectedNextBaseFee)
         {
             int blockCount = 1;
@@ -412,9 +413,11 @@ namespace Nethermind.JsonRpc.Test.Modules
             FeeHistoryOracle feeHistoryOracle = SetUpFeeHistoryManager(newestBlockParameter, spec);
             double[] rewardPercentiles = { 0 };
             using FeeHistoryResults expected = new(0,
-                // Last entry is the next-block base fee estimate: secondBlock is under target
-                // (gasUsed 2 < target 4), so the Bourse fork drops it by the 1-wei minimum: 3 -> 2.
-                new ArrayPoolList<UInt256>([2, 3, 2]),
+                // First two entries are the actual sealed block base fees (2 and 3 from the test
+                // blocks). The third entry is the next-block base fee estimate: secondBlock is
+                // under target (gasUsed 2 < target 4), the calculator's under-target clamp pins
+                // the result to Eip1559Constants.MinimumBaseFee = 2_380_952_381 wei.
+                new ArrayPoolList<UInt256>([2, 3, 2_380_952_381]),
                 new ArrayPoolList<double>([0.6, 0.25]),
                 new ArrayPoolList<UInt256>([1, 1, 1]),
                 new ArrayPoolList<double>(2, blobGasUsedRatio),

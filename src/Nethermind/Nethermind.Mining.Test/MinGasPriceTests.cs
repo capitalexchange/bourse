@@ -40,15 +40,22 @@ namespace Nethermind.Mining.Test
             filter.IsAllowed(tx, null!, releaseSpec).Equals(expectedResult ? AcceptTxResult.Accepted : AcceptTxResult.FeeTooLow).Should().BeTrue();
         }
 
-        [TestCase(0L, 0L, 0L, true)]
+        // Bourse fork: the filter calls BaseFeeCalculator.Calculate(parent, spec), and on Bourse
+        // that always returns Eip1559Constants.MinimumBaseFee (2_380_952_381). The test's tiny
+        // parent baseFee=1000 is ignored. So premiumPerGas = max(0, maxFee - 2.38B) = 0 for every
+        // case here where maxFee ≤ 2.38B. Expected truth values now reduce to "0 >= minimum".
+        // (Cases that previously expected `true` because of the canonical 1000-baseFee math —
+        // (1, 876, 1000) and (2, 1000, 1000) — now expect `false` because the pin swallows the
+        // premium.)
+        [TestCase(0L, 0L, 0L, true)]    // 0 premium ≥ 0 minimum
         [TestCase(1L, 0L, 0L, false)]
         [TestCase(1L, 0L, 1L, false)]
         [TestCase(1L, 100L, 1000L, false)]
         [TestCase(1L, 875L, 1000L, false)]
-        [TestCase(1L, 876L, 1000L, true)]
+        [TestCase(1L, 876L, 1000L, false)] // was true (canonical), now false (pin swallows)
         [TestCase(1L, 876L, 0L, false)]
         [TestCase(2L, 1000L, 1L, false)]
-        [TestCase(2L, 1000L, 1000L, true)]
+        [TestCase(2L, 1000L, 1000L, false)] // was true (canonical), now false (pin swallows)
         public void Test1559(long minimum, long maxFeePerGas, long maxPriorityFeePerGas, bool expectedResult)
         {
             ISpecProvider specProvider = Substitute.For<ISpecProvider>();

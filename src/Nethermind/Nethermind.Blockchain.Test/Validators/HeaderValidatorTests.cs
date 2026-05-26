@@ -361,22 +361,25 @@ public class HeaderValidatorTests
             .WithNumber(5)
             .TestObject;
 
-        // Calculate expected baseFee for child block
-        // parentGasTarget = 300000000 / 2 = 150000000
-        // gasDelta = 150000000 - 0 = 150000000
-        // feeDelta = 10 * 150000000 / 150000000 / 8 = 1
-        // expectedBaseFee = 10 - 1 = 9
+        // Calculate expected baseFee for child block. Bourse fork: the calculator's clamps pin
+        // the result to Eip1559Constants.MinimumBaseFee (2_380_952_381 wei) instead of the
+        // canonical EIP-1559 decay from 10 → 9. The point of this test is that an INVALID
+        // baseFee in a block header gets rejected even with a no-op seal engine — what matters
+        // is that the block's baseFee (10) doesn't equal the calculator's expected value
+        // (whatever that is), not the specific expected value.
         UInt256 expectedBaseFee = BaseFeeCalculator.Calculate(
             _parentBlock.Header,
             specProvider.GetSpec((ForkActivation)(_parentBlock.Number + 1))
         );
-        Assert.That(expectedBaseFee, Is.EqualTo((UInt256)9), "Test setup: expected baseFee should be 9");
+        Assert.That(expectedBaseFee, Is.EqualTo(Eip1559Constants.MinimumBaseFee),
+            "Test setup: Bourse pin makes expected baseFee = MinimumBaseFee");
 
-        // Create block with INCORRECT baseFee (10 instead of 9)
+        // Create block with INCORRECT baseFee (10 — neither the canonical 9 nor the pinned
+        // MinimumBaseFee — so validation must reject either way).
         _block = Build.A.Block
             .WithParent(_parentBlock)
             .WithDifficulty(0)
-            .WithBaseFeePerGas(10)  // WRONG! Should be 9
+            .WithBaseFeePerGas(10)  // WRONG (≠ MinimumBaseFee on Bourse, ≠ 9 canonically)
             .WithGasUsed(0)
             .WithGasLimit(300000000)
             .WithNumber(_parentBlock.Number + 1)
@@ -391,7 +394,7 @@ public class HeaderValidatorTests
         // Even though seal engine is NoProof, consensus rules must be enforced
         Assert.That(result, Is.False,
             "Block with invalid baseFee must be rejected even with NoProof seal engine. " +
-            $"Expected baseFee=9, actual baseFee=10");
+            $"Expected baseFee={expectedBaseFee}, actual baseFee=10");
 
         // Verify the error message mentions baseFee
         bool baseFeeErrorLogged = _testLogger.LogList.Any(log =>
