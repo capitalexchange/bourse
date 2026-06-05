@@ -40,8 +40,8 @@ public class GenesisBuilderTests
         Block block = GetGenesisBlock("Specs/shanghai_from_genesis.json");
         // Bourse fork: hash changed because DefaultForkBaseFee == MinimumBaseFee, which the
         // chain-spec-loader defaults baseFeePerGas to when the chainspec doesn't set it
-        // explicitly. Updated whenever MinimumBaseFee changes (currently 2_380_952_381).
-        Assert.That(block.Hash!.ToString(), Is.EqualTo("0xe43737782425d645bf90161e40b09aa39dc9c4182810511111de5d01d2db7b26"));
+        // explicitly. Updated whenever MinimumBaseFee changes (currently 714_285_714_285).
+        Assert.That(block.Hash!.ToString(), Is.EqualTo("0xf117a892b7027055248eadc086d868e13ab15d46bf98c99e9e18776ce4bb8f20"));
     }
 
     [Test, MaxTime(Timeout.MaxTestTime)]

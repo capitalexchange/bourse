@@ -118,15 +118,15 @@ namespace Nethermind.JsonRpc.Test.Modules
             resultWrapper.Result.ResultType.Should().Be(ResultType.Failure);
         }
 
-        // Bourse fork: the calculator pins to Eip1559Constants.MinimumBaseFee (2_380_952_381 wei)
+        // Bourse fork: the calculator pins to Eip1559Constants.MinimumBaseFee (714_285_714_285 wei)
         // in both over-target and under-target branches whenever parentBaseFee > 0, so every case
         // here collapses to the pin value. (Canonical EIP-1559 expectations are in the comments;
         // none of them survive the pin.)
-        [TestCase(3, 3, 5, 2_380_952_381L)]   //Target=1.5, Used=3 over-target (canonical: 6)
-        [TestCase(3, 3, 11, 2_380_952_381L)]  //Target=1.5, Used=3 over-target (canonical: 13)
-        [TestCase(100, 95, 20, 2_380_952_381L)] //Target=50, Used=95 over-target (canonical: 22)
-        [TestCase(100, 40, 20, 2_380_952_381L)] //Target=50, Used=40 under-target (canonical: 19)
-        [TestCase(100, 40, 50, 2_380_952_381L)] //Target=50, Used=40 under-target (canonical: 49)
+        [TestCase(3, 3, 5, 714_285_714_285L)]   //Target=1.5, Used=3 over-target (canonical: 6)
+        [TestCase(3, 3, 11, 714_285_714_285L)]  //Target=1.5, Used=3 over-target (canonical: 13)
+        [TestCase(100, 95, 20, 714_285_714_285L)] //Target=50, Used=95 over-target (canonical: 22)
+        [TestCase(100, 40, 20, 714_285_714_285L)] //Target=50, Used=40 under-target (canonical: 19)
+        [TestCase(100, 40, 50, 714_285_714_285L)] //Target=50, Used=40 under-target (canonical: 49)
         public void GetFeeHistory_IfLondonEnabled_NextBaseFeePerGasCalculatedCorrectly(long gasLimit, long gasUsed, long baseFee, long expectedNextBaseFee)
         {
             int blockCount = 1;
@@ -416,8 +416,8 @@ namespace Nethermind.JsonRpc.Test.Modules
                 // First two entries are the actual sealed block base fees (2 and 3 from the test
                 // blocks). The third entry is the next-block base fee estimate: secondBlock is
                 // under target (gasUsed 2 < target 4), the calculator's under-target clamp pins
-                // the result to Eip1559Constants.MinimumBaseFee = 2_380_952_381 wei.
-                new ArrayPoolList<UInt256>([2, 3, 2_380_952_381]),
+                // the result to Eip1559Constants.MinimumBaseFee = 714_285_714_285 wei.
+                new ArrayPoolList<UInt256>([2, 3, 714_285_714_285]),
                 new ArrayPoolList<double>([0.6, 0.25]),
                 new ArrayPoolList<UInt256>([1, 1, 1]),
                 new ArrayPoolList<double>(2, blobGasUsedRatio),

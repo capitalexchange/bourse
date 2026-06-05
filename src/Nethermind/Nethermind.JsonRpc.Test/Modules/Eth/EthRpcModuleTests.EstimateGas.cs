@@ -189,9 +189,12 @@ public partial class EthRpcModuleTests
     [Test]
     public async Task Estimate_gas_without_gas_pricing_after_1559_legacy()
     {
+        // Bourse fork: gasPrice bumped from 0x100000000 (4.3B wei, below the new pin) to
+        // 0x10000000000 (~1.1T wei, well above the pin of 714B). The test's point is
+        // independent of the specific gasPrice as long as it's ≥ baseFee.
         using Context ctx = await Context.CreateWithLondonEnabled();
         TransactionForRpc transaction = ctx.Test.JsonSerializer.Deserialize<TransactionForRpc>(
-            $"{{\"from\": \"{TestItem.AddressA}\", \"to\": \"{SecondaryTestAddress}\", \"gasPrice\": \"0x100000000\"}}");
+            $"{{\"from\": \"{TestItem.AddressA}\", \"to\": \"{SecondaryTestAddress}\", \"gasPrice\": \"0x10000000000\"}}");
         string serialized = await ctx.Test.TestEthRpc("eth_estimateGas", transaction);
         Assert.That(serialized, Is.EqualTo("{\"jsonrpc\":\"2.0\",\"result\":\"0x5208\",\"id\":67}"));
     }
@@ -504,13 +507,17 @@ public partial class EthRpcModuleTests
     {
         // Regression for: balance < blockGasLimit × gasPrice but balance is enough for actual gas cost.
         // Before fix: TransactionProcessor rejected with "insufficient MaxFeePerGas for sender balance"
-        // because the EIP-1559 pre-check used tx.GasLimit (= blockGasLimit) instead of the actual estimated gas.
-        // blockGasLimit(4M) × gasPrice(50Gwei) = 0.2 ETH > balance(0.1 ETH).
-        // Actual gas needed ≈ 0x53b8 ≈ 21432 → cost = 21432 × 50Gwei ≪ 0.1 ETH.
+        // because the EIP-1559 pre-check used tx.GasLimit (= blockGasLimit) instead of the actual
+        // estimated gas.
+        // Bourse fork: gasPrice raised from 50 Gwei (below the 714 Gwei pin) to 1 Twei (0xE8D4A51000)
+        // — comfortably above the pin while still letting the test reproduce the
+        // balance-below-block-cost / above-actual-gas-cost regression scenario.
+        // blockGasLimit(4M) × gasPrice(1Twei) = 4 ETH > balance(0.1 ETH).
+        // Actual gas needed ≈ 0x53b8 ≈ 21432 → cost = 21432 × 1Twei ≈ 0.021 ETH ≪ 0.1 ETH.
         using Context ctx = await Context.CreateWithLondonEnabled();
 
         object transaction = JsonSerializer.Deserialize<object>(
-            $"{{\"from\":\"0xa9ac1233699bdae25abebae4f9fb54dbb1b44700\",\"gasPrice\":\"0xBA43B7400\",\"data\":\"{BalanceOfCallData}\",\"to\":\"{BatTokenAddress}\"}}",
+            $"{{\"from\":\"0xa9ac1233699bdae25abebae4f9fb54dbb1b44700\",\"gasPrice\":\"0xE8D4A51000\",\"data\":\"{BalanceOfCallData}\",\"to\":\"{BatTokenAddress}\"}}",
             JsonSerializerOptions.Default)!;
         object stateOverride = JsonSerializer.Deserialize<object>(
             """{"0xa9ac1233699bdae25abebae4f9fb54dbb1b44700":{"balance":"0x16345785D8A0000"}}""",
@@ -523,19 +530,24 @@ public partial class EthRpcModuleTests
     [Test]
     public async Task Eth_estimateGas_returns_execution_reverted_when_gas_price_set_and_contract_reverts()
     {
-        // Regression for: balance < explicit_gas × gasPrice, but the EVM should still run and surface the revert.
-        // Before fix: TransactionProcessor rejected with "insufficient MaxFeePerGas for sender balance" before EVM ran.
-        // explicit_gas(0xE234=57908) × gasPrice(50Gwei) ≈ 0.0029 ETH > balance(0.002 ETH).
-        // The target contract reverts unconditionally; after the fix estimation returns "execution reverted".
+        // Regression for: balance < explicit_gas × gasPrice, but the EVM should still run and
+        // surface the revert. Before fix: TransactionProcessor rejected with "insufficient
+        // MaxFeePerGas for sender balance" before EVM ran.
+        // Bourse fork: gasPrice raised from 50 Gwei to 1 Twei (above the 714 Gwei pin); balance
+        // scaled in the same 20× proportion so the scenario survives:
+        //   explicit_gas(0xE234=57908) × gasPrice(1Twei) ≈ 0.058 ETH > balance(0.036 ETH)
+        //   intrinsic(21000) × gasPrice(1Twei) ≈ 0.021 ETH < balance — so the tx CAN run
+        // The target contract reverts unconditionally; after the fix estimation returns
+        // "execution reverted".
         using Context ctx = await Context.CreateWithLondonEnabled();
 
         object transaction = JsonSerializer.Deserialize<object>(
-            """{"from":"0xa9ac1233699bdae25abebae4f9fb54dbb1b44700","to":"0x252568abdeb9de59fd8963dfcd87be2db65f1ce1","gas":"0xE234","gasPrice":"0xBA43B7400"}""",
+            """{"from":"0xa9ac1233699bdae25abebae4f9fb54dbb1b44700","to":"0x252568abdeb9de59fd8963dfcd87be2db65f1ce1","gas":"0xE234","gasPrice":"0xE8D4A51000"}""",
             JsonSerializerOptions.Default)!;
-        // balance = 0.002 ETH (below gas × gasPrice = 0.0029 ETH but above intrinsicGas × gasPrice)
+        // balance ≈ 0.036 ETH (between intrinsic×gasPrice and gas×gasPrice).
         // target address has minimal always-revert bytecode: PUSH1 0, PUSH1 0, REVERT
         object stateOverride = JsonSerializer.Deserialize<object>(
-            """{"0xa9ac1233699bdae25abebae4f9fb54dbb1b44700":{"balance":"0x71AFD498D0000"},"0x252568abdeb9de59fd8963dfcd87be2db65f1ce1":{"code":"0x60006000fd"}}""",
+            """{"0xa9ac1233699bdae25abebae4f9fb54dbb1b44700":{"balance":"0x80000000000000"},"0x252568abdeb9de59fd8963dfcd87be2db65f1ce1":{"code":"0x60006000fd"}}""",
             JsonSerializerOptions.Default)!;
 
         string serialized = await ctx.Test.TestEthRpc("eth_estimateGas", transaction, "latest", stateOverride);
@@ -626,7 +638,7 @@ public partial class EthRpcModuleTests
     [Test]
     public async Task Estimate_gas_baseFeePerGas_override_allows_tx_with_gasPrice_below_real_baseFee()
     {
-        // Bourse fork: base fee is pinned at MinimumBaseFee = 2_380_952_381 wei (0x8dea733d).
+        // Bourse fork: base fee is pinned at MinimumBaseFee = 714_285_714_285 wei (0xa64ebf0b6d).
         // A tx with maxFeePerGas = the pin is accepted by default; with a block override that
         // raises baseFeePerGas above the tx's maxFee, the same tx is rejected. Exercises the
         // baseFeePerGas state-override mechanism end to end.
@@ -634,15 +646,17 @@ public partial class EthRpcModuleTests
 
         string sender = TestItem.AddressA.ToString();
         object? transaction = JsonSerializer.Deserialize<object>(
-            "{\"type\":\"0x2\",\"from\":\"" + sender + "\",\"to\":\"0xc200000000000000000000000000000000000000\",\"maxFeePerGas\":\"0x8dea733d\",\"maxPriorityFeePerGas\":\"0x8dea733d\"}");
+            "{\"type\":\"0x2\",\"from\":\"" + sender + "\",\"to\":\"0xc200000000000000000000000000000000000000\",\"maxFeePerGas\":\"0xa64ebf0b6d\",\"maxPriorityFeePerGas\":\"0xa64ebf0b6d\"}");
         object? stateOverride = JsonSerializer.Deserialize<object>(
             "{\"" + sender + "\":{\"balance\":\"0xde0b6b3a7640000\"}}"); // 1 ETH
 
         string withoutOverride = await ctx.Test.TestEthRpc("eth_estimateGas", transaction, "latest", stateOverride);
         JToken.Parse(withoutOverride)["result"]!.Value<string>().Should().Be("0x5208",
-            because: "maxFeePerGas(0x8dea733d) >= baseFee(0x8dea733d pinned) on Bourse, no override needed");
+            because: "maxFeePerGas(0xa64ebf0b6d) >= baseFee(0xa64ebf0b6d pinned) on Bourse, no override needed");
 
-        object? blockOverride = JsonSerializer.Deserialize<object>("""{"baseFeePerGas":"0x100000000"}""");
+        // Override must be strictly above the new tx maxFeePerGas (0xa64ebf0b6d ≈ 714 Gwei)
+        // to make the BaseFeeTxFilter reject — pick comfortably above the pin.
+        object? blockOverride = JsonSerializer.Deserialize<object>("""{"baseFeePerGas":"0x10000000000"}""");
         string withOverride = await ctx.Test.TestEthRpc("eth_estimateGas", transaction, "latest", stateOverride, blockOverride);
         JToken.Parse(withOverride)["error"].Should().NotBeNull(
             because: "block override raised baseFee above tx maxFeePerGas, so the tx should fail");

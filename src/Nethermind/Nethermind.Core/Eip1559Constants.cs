@@ -17,10 +17,11 @@ namespace Nethermind.Core
         /// under-target clamps in <see cref="DefaultBaseFeeCalculator"/> both drive the result to
         /// this value, so every block's <c>baseFeePerGas</c> equals <c>MinimumBaseFee</c>.
         /// <para>
-        /// Value: <c>2_380_952_381</c> wei = <c>0x8DEA733D</c>. At a 21,000-gas standard
-        /// transfer this works out to <c>2_380_952_381 × 21_000 = 50_000_000_001_000</c> wei
-        /// ≈ <c>0.00005</c> BOURSE — chosen as the smallest integer wei/gas value whose 21k-gas
-        /// fee is ≥ 0.00005 BOURSE.
+        /// Value: <c>714_285_714_285</c> wei = <c>0xA64EBF0B6D</c>. At a 21,000-gas standard
+        /// transfer this works out to <c>714_285_714_285 × 21_000 = 14_999_999_999_985_000</c> wei
+        /// ≈ <c>0.015</c> BOURSE — chosen as the largest integer wei/gas value whose 21k-gas
+        /// fee is ≤ 0.015 BOURSE. At an anticipated BOURSE/USD between $0.10 and $0.16 this
+        /// puts a standard transfer at ≈ $0.0015 – $0.0024 (modern-L2 economics).
         /// </para>
         /// <para>
         /// Bumping this is forward-only: existing sealed blocks keep their old <c>baseFeePerGas</c>
@@ -28,7 +29,7 @@ namespace Nethermind.Core
         /// jumps to the new value via the same clamp the validator agrees on. No chain reset.
         /// </para>
         /// </remarks>
-        public static readonly UInt256 MinimumBaseFee = 2_380_952_381;
+        public static readonly UInt256 MinimumBaseFee = 714_285_714_285;
 
         /// <summary>
         /// Base fee assigned at the EIP-1559 fork block (or at genesis when EIP-1559 is active from

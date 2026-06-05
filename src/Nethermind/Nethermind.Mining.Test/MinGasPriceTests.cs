@@ -41,7 +41,7 @@ namespace Nethermind.Mining.Test
         }
 
         // Bourse fork: the filter calls BaseFeeCalculator.Calculate(parent, spec), and on Bourse
-        // that always returns Eip1559Constants.MinimumBaseFee (2_380_952_381). The test's tiny
+        // that always returns Eip1559Constants.MinimumBaseFee (714_285_714_285). The test's tiny
         // parent baseFee=1000 is ignored. So premiumPerGas = max(0, maxFee - 2.38B) = 0 for every
         // case here where maxFee ≤ 2.38B. Expected truth values now reduce to "0 >= minimum".
         // (Cases that previously expected `true` because of the canonical 1000-baseFee math —

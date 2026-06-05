@@ -362,7 +362,7 @@ public class HeaderValidatorTests
             .TestObject;
 
         // Calculate expected baseFee for child block. Bourse fork: the calculator's clamps pin
-        // the result to Eip1559Constants.MinimumBaseFee (2_380_952_381 wei) instead of the
+        // the result to Eip1559Constants.MinimumBaseFee (714_285_714_285 wei) instead of the
         // canonical EIP-1559 decay from 10 → 9. The point of this test is that an INVALID
         // baseFee in a block header gets rejected even with a no-op seal engine — what matters
         // is that the block's baseFee (10) doesn't equal the calculator's expected value

@@ -251,9 +251,11 @@ public partial class EthRpcModuleTests
     [Test]
     public async Task Eth_call_without_gas_pricing_after_1559_legacy()
     {
+        // Bourse fork: gasPrice bumped from 0x100000000 (4.3B wei, below the new pin) to
+        // 0x10000000000 (~1.1T wei, well above the pin of 714B). Test logic is unchanged.
         using Context ctx = await Context.CreateWithLondonEnabled();
         TransactionForRpc transaction = ctx.Test.JsonSerializer.Deserialize<TransactionForRpc>(
-            $"{{\"from\": \"{TestItem.AddressA}\", \"to\": \"{SecondaryTestAddress}\", \"gasPrice\": \"0x100000000\"}}");
+            $"{{\"from\": \"{TestItem.AddressA}\", \"to\": \"{SecondaryTestAddress}\", \"gasPrice\": \"0x10000000000\"}}");
         string serialized = await ctx.Test.TestEthRpc("eth_call", transaction);
         Assert.That(serialized, Is.EqualTo("{\"jsonrpc\":\"2.0\",\"result\":\"0x\",\"id\":67}"));
     }

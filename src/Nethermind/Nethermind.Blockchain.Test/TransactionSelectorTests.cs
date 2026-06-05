@@ -475,7 +475,7 @@ namespace Nethermind.Blockchain.Test
         {
             // Bourse fork: the selector runs every candidate through BaseFeeTxFilter, which
             // computes the next-block base fee via BaseFeeCalculator. With the Bourse pin, that
-            // calculator clamps the result to Eip1559Constants.MinimumBaseFee (2_380_952_381),
+            // calculator clamps the result to Eip1559Constants.MinimumBaseFee (714_285_714_285),
             // regardless of the small parent baseFee these test cases set up (typically 0, 5, or
             // 1 wei). All the test transactions use small gas prices that were valid against
             // their hand-crafted parent baseFee but fall below the pin, so they get filtered out
@@ -487,7 +487,7 @@ namespace Nethermind.Blockchain.Test
             bool eip1559Active = testCase.ReleaseSpec.IsEip1559Enabled;
             if (eip1559Active && testCase.BaseFee < Eip1559Constants.MinimumBaseFee)
             {
-                Assert.Ignore("Bourse pin (MinimumBaseFee = 2_380_952_381) raises the next-block base fee above this case's hand-crafted small gas prices, so all candidate txs get filtered. Canonical EIP-1559 scenario no longer applies on Bourse.");
+                Assert.Ignore("Bourse pin (MinimumBaseFee = 714_285_714_285) raises the next-block base fee above this case's hand-crafted small gas prices, so all candidate txs get filtered. Canonical EIP-1559 scenario no longer applies on Bourse.");
             }
 
             IReadOnlyList<Transaction> selectedTransactions = SelectTransactions(testCase);
