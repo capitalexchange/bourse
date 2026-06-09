@@ -97,7 +97,17 @@ public static class ProductInfo
 
     public static string PublicClientId { get; private set; }
 
-    public const string DefaultPublicClientIdFormat = "{name}/{version}/{os}/{runtime}";
+    /// <remarks>
+    /// Bourse fork: stripped from the upstream <c>"{name}/{version}/{os}/{runtime}"</c> to just
+    /// <c>"{name}/{version}"</c>. <c>web3_clientVersion</c> reads <see cref="PublicClientId"/>,
+    /// which is built from this template; the upstream default leaked OS + .NET runtime version
+    /// (e.g. <c>BOURSE/v1.0.7-release/linux-x64/dotnet10.0.8</c>) to any unauthenticated RPC
+    /// caller, which is unnecessary fingerprinting for vulnerability targeting. The full set of
+    /// placeholders (<c>{name} {version} {os} {runtime}</c>) is still resolvable; node operators
+    /// can opt back in to the upstream format via <c>Network.PublicClientIdFormat</c> if they need
+    /// it for diagnostics.
+    /// </remarks>
+    public const string DefaultPublicClientIdFormat = "{name}/{version}";
 
     public static void InitializePublicClientId(string formatString) =>
         PublicClientId = FormatClientId(formatString);
