@@ -441,6 +441,115 @@ namespace Nethermind.Blockchain.Test
             BlockToProduce blockToProduce = new(block.Header, block.Transactions, block.Uncles);
             return RunBlockProduction(transactionProcessor, stateProvider, new TestSingleReleaseSpecProvider(spec), blockToProduce, spec);
         }
+
+        // Bourse fork regression: production halted indefinitely at block 78268 on 2026-06-13 when a
+        // sender held exactly `balance == gasLimit × maxFeePerGas + value` at the pinned baseFee.
+        // The picker allowed the tx through; the executor's PayFees deficit-charge (introduced by the
+        // 1.0.9 flat-fee patch — `Eip1559Constants.FlatFee = gasLimit×pin + 15_000`) then tried to
+        // subtract 15_000 wei from a zero balance, threw InsufficientBalanceException, aborted the
+        // candidate block, and re-selected the same poison tx every cycle. Two fixes shipped together:
+        //   (a) The picker now also enforces `senderBalance >= FlatFee + value` when the block is at
+        //       the pinned baseFee — this test directly verifies (a).
+        //   (b) The executor wraps ProcessTransaction in try/catch InsufficientBalanceException as a
+        //       defense-in-depth backstop. Sister test below exercises (b).
+        [Test]
+        public void BlockProductionTransactionPicker_skips_flat_fee_boundary_tx_under_bourse_pin()
+        {
+            Address sender = TestItem.AddressA;
+            UInt256 value = 100;
+
+            Transaction tx = Build.A.Transaction
+                .WithSenderAddress(sender)
+                .WithType(TxType.EIP1559)
+                .WithMaxFeePerGas(Eip1559Constants.MinimumBaseFee)
+                .WithMaxPriorityFeePerGas(UInt256.Zero)
+                .WithGasLimit(GasCostOf.Transaction)
+                .WithValue(value)
+                .WithNonce(0)
+                .TestObject;
+
+            UInt256 boundaryBalance = (UInt256)tx.GasLimit * tx.MaxFeePerGas + value;
+            Assert.That(boundaryBalance + 15_000, Is.EqualTo(Eip1559Constants.FlatFee + value),
+                "Sanity: the off-by-15_000 gap is exactly the FlatFee truncation slack that PayFees would have to charge.");
+
+            Block block = Build.A.Block
+                .WithBaseFeePerGas(Eip1559Constants.MinimumBaseFee)
+                .WithGasLimit(30_000_000)
+                .TestObject;
+
+            IWorldState stateProvider = TestWorldStateFactory.CreateForTest();
+            using IDisposable _ = stateProvider.BeginScope(IWorldState.PreGenesis);
+            stateProvider.CreateAccount(sender, boundaryBalance);
+            stateProvider.Commit(Cancun.Instance);
+
+            ISpecProvider specProvider = new TestSingleReleaseSpecProvider(Cancun.Instance);
+            BlockProcessor.BlockProductionTransactionPicker picker =
+                new(specProvider, BlocksConfig.DefaultMaxTxKilobytes);
+
+            BlockProcessor.AddingTxEventArgs result = picker.CanAddTransaction(block, tx, new HashSet<Transaction>(), stateProvider);
+
+            Assert.That(result.Action, Is.EqualTo(BlockProcessor.TxAction.Skip),
+                "Picker must skip a tx whose balance is below the flat-fee floor; otherwise PayFees underflows and aborts the block.");
+            Assert.That(result.Reason, Does.Contain("Bourse flat-fee").Or.Contain("balance"));
+        }
+
+        // Sister test for the executor backstop (fix (b) in the comment above). Even if a future
+        // picker drift lets an unaffordable tx slip through, the production executor must catch
+        // InsufficientBalanceException and continue building the block — never propagate it up to
+        // the producer, where it would abort the entire block and (because the tx isn't evicted)
+        // halt the chain indefinitely.
+        [Test]
+        public void BlockProductionTransactionsExecutor_skips_tx_when_processor_throws_InsufficientBalance()
+        {
+            Address sender = TestItem.AddressA;
+            Transaction poison = Build.A.Transaction
+                .WithSenderAddress(sender)
+                .WithType(TxType.EIP1559)
+                .WithMaxFeePerGas(Eip1559Constants.MinimumBaseFee)
+                .WithGasLimit(GasCostOf.Transaction)
+                .WithNonce(0)
+                .TestObject;
+
+            ITransactionProcessorAdapter processor = Substitute.For<ITransactionProcessorAdapter>();
+            // The executor invokes the processor via TransactionProcessorAdapterExtensions.ProcessTransaction
+            // (an internal extension method that calls StartNewTxTrace + Execute + EndTxTrace). To inject
+            // the failure mode that triggered the field halt, throw out of the inner Execute call — that's
+            // the moment when the tracer is already mid-trace and the executor's catch needs to clean up.
+            processor.When(p => p.Execute(Arg.Any<Transaction>(), Arg.Any<ITxTracer>()))
+                .Throw(new InsufficientBalanceException(sender));
+
+            IWorldState stateProvider = new WorldStateStab();
+            using IDisposable _ = stateProvider.BeginScope(IWorldState.PreGenesis);
+
+            IReleaseSpec spec = Cancun.Instance;
+            ISpecProvider specProvider = new TestSingleReleaseSpecProvider(spec);
+
+            Block block = Build.A.Block
+                .WithBaseFeePerGas(Eip1559Constants.MinimumBaseFee)
+                .WithGasLimit(30_000_000)
+                .WithTransactions(poison)
+                .TestObject;
+            BlockToProduce blockToProduce = new(block.Header, block.Transactions, block.Uncles);
+
+            BlockProcessor.BlockProductionTransactionsExecutor executor = new(
+                processor, stateProvider,
+                new BlockProcessor.BlockProductionTransactionPicker(specProvider, BlocksConfig.DefaultMaxTxKilobytes),
+                LimboLogs.Instance,
+                NullBlockAccessListManager.Instance);
+
+            executor.SetBlockExecutionContext(new BlockExecutionContext(block.Header, spec));
+
+            BlockReceiptsTracer receiptsTracer = new();
+            receiptsTracer.StartNewBlockTrace(blockToProduce);
+
+            // The test PASSES if this does NOT throw — pre-1.0.10, the InsufficientBalanceException
+            // propagated up to CliqueBlockProducer.BuildBlock and halted production indefinitely.
+            Assert.DoesNotThrow(() => executor.ProcessTransactions(blockToProduce, ProcessingOptions.ProducingBlock, receiptsTracer));
+
+            // And the offending tx must NOT be included in the produced block (skipped, not added).
+            Assert.That(blockToProduce.Transactions, Is.Empty,
+                "The poison tx that triggered InsufficientBalanceException must be dropped from the candidate block, not included.");
+        }
     }
 
     public class WorldStateStab()

@@ -123,6 +123,27 @@ namespace Nethermind.Consensus.Processing
                         e.Set(TxAction.Skip, $"{maxFee} is higher than sender balance ({senderBalance}), MaxFeePerGas: ({transaction.MaxFeePerGas}), GasLimit {transaction.GasLimit}, BlobBaseFee: {blobBaseFee}");
                         return false;
                     }
+
+                    // Bourse fork: align the picker's affordability check with the executor's flat-fee
+                    // settlement. When the block is sealed at the pinned baseFee, `TransactionProcessor.PayFees`
+                    // charges `Eip1559Constants.FlatFee` per tx — which exceeds `gasLimit × maxFeePerGas` by 15_000
+                    // wei for the canonical 21k transfer at `maxFeePerGas == MinimumBaseFee`. Without this check
+                    // the picker would let a sender at exactly `balance == gasLimit × maxFeePerGas + value` through;
+                    // PayFees would then try to subtract the deficit from a zero balance, throw
+                    // `InsufficientBalanceException`, abort the entire candidate block, and (because the tx isn't
+                    // evicted) halt production indefinitely as the producer re-selects the poison tx every cycle.
+                    // Observed in production 2026-06-13 at block 78268. The defensive try/catch in
+                    // BlockProductionTransactionsExecutor.ProcessTransaction is the backstop; this check is the
+                    // proper fix that prevents the slip-through in the first place.
+                    if (block.BaseFeePerGas == Eip1559Constants.MinimumBaseFee)
+                    {
+                        if (UInt256.AddOverflow(Eip1559Constants.FlatFee, transaction.Value, out UInt256 flatPotentialCost)
+                            || senderBalance < flatPotentialCost)
+                        {
+                            e.Set(TxAction.Skip, $"Bourse flat-fee potential cost ({flatPotentialCost}) is higher than sender balance ({senderBalance})");
+                            return false;
+                        }
+                    }
                 }
                 return true;
             }

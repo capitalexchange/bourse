@@ -107,18 +107,46 @@ namespace Nethermind.Consensus.Processing
                 else
                 {
                     ITransactionProcessorAdapter processor = balManager.Enabled ? balManager.GetTxProcessor() : transactionProcessor;
-                    TransactionResult result = processor.ProcessTransaction(currentTx, receiptsTracer, processingOptions, stateProvider);
+                    try
+                    {
+                        TransactionResult result = processor.ProcessTransaction(currentTx, receiptsTracer, processingOptions, stateProvider);
 
-                    if (result)
-                    {
-                        _transactionProcessed?.Invoke(this,
-                            new TxProcessedEventArgs(index, currentTx, block.Header, receiptsTracer.TxReceipts[index]));
-                        balManager.NextTransaction();
+                        if (result)
+                        {
+                            _transactionProcessed?.Invoke(this,
+                                new TxProcessedEventArgs(index, currentTx, block.Header, receiptsTracer.TxReceipts[index]));
+                            balManager.NextTransaction();
+                        }
+                        else
+                        {
+                            balManager.Rollback();
+                            args.Set(TxAction.Skip, result.ErrorDescription!);
+                        }
                     }
-                    else
+                    catch (Nethermind.State.InsufficientBalanceException ex)
                     {
+                        // Bourse fork: defense-in-depth. The picker is supposed to have already filtered
+                        // unaffordable txs; if it didn't (picker/executor disagree at the affordability
+                        // boundary, or sender balance changes between selection and execution), DO NOT let
+                        // the exception propagate. Letting it bubble up aborts the whole candidate block,
+                        // and the offending tx isn't evicted, so the producer re-selects and re-fails it
+                        // every cycle — turning one unaffordable tx into an indefinite chain halt.
+                        // Field-observed in production 2026-06-13 at block 78268; root cause was the
+                        // BlockProductionTransactionPicker.HasEnoughFunds boundary mismatch with the
+                        // 1.0.9 flat-fee patch's PayFees deficit charge. That picker mismatch is the
+                        // proper fix; this catch is the backstop. Apply ONLY to the production executor —
+                        // BlockValidationTransactionsExecutor must still throw, since on the validation
+                        // path an unprocessable tx legitimately makes the received block invalid.
+                        // EndTxTrace cleanup: TransactionProcessorAdapterExtensions.ProcessTransaction
+                        // calls receiptsTracer.StartNewTxTrace *before* invoking the transaction
+                        // processor's Execute. When Execute throws, the matching EndTxTrace never runs
+                        // and the tracer stays mid-trace, which makes the next StartNewTxTrace assert
+                        // or silently replace. Defensively close the trace here so the tracer state
+                        // machine is consistent regardless of which tx threw.
+                        if (_logger.IsWarn) _logger.Warn($"Producing: skipping unprocessable tx {currentTx.Hash} ({ex.Message}); continuing block production from the rest.");
+                        try { receiptsTracer.EndTxTrace(); } catch { /* tracer may already be ended; safe to ignore */ }
                         balManager.Rollback();
-                        args.Set(TxAction.Skip, result.ErrorDescription!);
+                        args.Set(TxAction.Skip, ex.Message);
                     }
                 }
 
